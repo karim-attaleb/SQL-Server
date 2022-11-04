@@ -1,0 +1,23 @@
+CREATE EVENT SESSION [database_health] ON SERVER 
+ADD EVENT sqlserver.blocked_process_report,
+ADD EVENT sqlserver.database_file_size_change(SET collect_database_name=(1)
+    ACTION(sqlserver.client_app_name,sqlserver.client_hostname,sqlserver.client_pid,sqlserver.nt_username,sqlserver.plan_handle,sqlserver.request_id,sqlserver.session_id,sqlserver.session_resource_group_id,sqlserver.transaction_id,sqlserver.username)),
+ADD EVENT sqlserver.error_reported(
+    ACTION(sqlserver.client_app_name,sqlserver.client_hostname,sqlserver.client_pid,sqlserver.database_id,sqlserver.database_name,sqlserver.nt_username,sqlserver.plan_handle,sqlserver.request_id,sqlserver.session_id,sqlserver.session_resource_group_id,sqlserver.transaction_id,sqlserver.tsql_frame,sqlserver.username)
+    WHERE ([severity]>(10))),
+ADD EVENT sqlserver.module_end(
+    ACTION(sqlserver.client_app_name,sqlserver.client_hostname,sqlserver.client_pid,sqlserver.database_id,sqlserver.database_name,sqlserver.nt_username,sqlserver.plan_handle,sqlserver.request_id,sqlserver.session_id,sqlserver.session_resource_group_id,sqlserver.transaction_id,sqlserver.tsql_frame,sqlserver.username)
+    WHERE ([sqlserver].[is_system]=(0) AND [duration]>=(5000000))),
+ADD EVENT sqlserver.rpc_completed(
+    ACTION(sqlserver.client_app_name,sqlserver.client_hostname,sqlserver.client_pid,sqlserver.database_id,sqlserver.database_name,sqlserver.nt_username,sqlserver.request_id,sqlserver.session_id,sqlserver.session_resource_group_id,sqlserver.transaction_id,sqlserver.username)
+    WHERE ([sqlserver].[is_system]=(0) AND ([duration]>=(5000000) OR [result]<>(0)))),
+ADD EVENT sqlserver.sql_batch_completed(SET collect_batch_text=(1)
+    ACTION(sqlserver.client_app_name,sqlserver.client_hostname,sqlserver.client_pid,sqlserver.database_id,sqlserver.database_name,sqlserver.nt_username,sqlserver.request_id,sqlserver.session_id,sqlserver.session_resource_group_id,sqlserver.transaction_id,sqlserver.username)
+    WHERE ([sqlserver].[is_system]=(0) AND ([duration]>=(5000000) OR [result]<>(0)))),
+ADD EVENT sqlserver.xml_deadlock_report(
+    ACTION(sqlserver.database_name))
+ADD TARGET package0.event_file(SET filename=N'database_health.xel',max_file_size=(5),max_rollover_files=(100))
+WITH (MAX_MEMORY=4096 KB,EVENT_RETENTION_MODE=ALLOW_MULTIPLE_EVENT_LOSS,MAX_DISPATCH_LATENCY=30 SECONDS,MAX_EVENT_SIZE=0 KB,MEMORY_PARTITION_MODE=PER_NODE,TRACK_CAUSALITY=ON,STARTUP_STATE=ON)
+GO
+
+
