@@ -1,0 +1,9 @@
+/*
+1.stop the sql service
+2.move the mdf file to new location
+3.move tempdb ldf file to new location(optional)
+4.start the service in single user mpde to keep the tempdb files from being written by system processes.
+5.add additional files to the new location(8 data files)
+6.restrat the service in n ormal mode 
+*/
+1. 
