@@ -1,0 +1,46 @@
+execute as login='sa'
+--SELECT immediate_sync, allow_anonymous FROM syspublications WHERE Name = N'QPulseRCG'
+DECLARE @publication AS sysname
+DECLARE @article AS sysname
+DECLARE @subscriber AS sysname
+DECLARE @destination_db AS sysname
+
+SET @publication	= N'QPulseGA' 
+SET @article		= N'zOccurrenceStatus' 
+SET @subscriber		= N'BEZAVWV60037\SQLPROD01'
+SET @destination_db = N'QPulseGA_RO'
+
+
+USE [QPulseGA]
+EXEC sp_changepublication
+	@publication = @publication,
+	@property = N'allow_anonymous',
+	@value = 'FALSE'
+
+EXEC sp_changepublication 
+	@publication = @publication, 
+	@property = N'immediate_sync', 
+	@value = 'False'
+
+
+EXEC sp_addarticle
+@publication = @publication,
+@article =@article,
+@source_object =@article,
+@force_invalidate_snapshot=1
+
+--Adding an article on existing Subscription
+EXEC sp_addsubscription
+@publication = @publication,
+@article =@article,
+@subscriber = @subscriber,
+@subscription_type = 'push',
+@destination_db = @destination_db,
+@reserved = 'internal'
+
+--EXEC sp_refreshsubscriptions @publication = @publication
+
+EXEC sp_startpublication_snapshot @publication = @publication
+GO
+
+
