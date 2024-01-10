@@ -6,4 +6,5 @@ JOIN sys.query_store_plan AS p
     ON q.query_id = p.query_id
 JOIN sys.query_store_runtime_stats AS rs
     ON p.plan_id = rs.plan_id
-ORDER BY rs.avg_duration DESC;
+ORDER BY rs.avg_duration DESC
+go
