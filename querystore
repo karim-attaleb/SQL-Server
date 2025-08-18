@@ -46,3 +46,15 @@ WHERE rsi.start_time >= '2025-01-01 10:00:00'
     AND rsi.end_time <= '2025-01-01 12:00:00'
     AND rs.avg_log_bytes_used > 0
 ORDER BY (rs.count_executions * rs.avg_log_bytes_used) DESC;
+
+
+
+SELECT 
+    end_time AS sample_time,
+    avg_log_write_percent AS 'Log Write %',
+    max_log_write_percent AS 'Max Log Write %',
+    avg_data_io_percent AS 'Data IO %',
+    avg_cpu_percent AS 'CPU %',
+    avg_memory_usage_percent AS 'Memory %'
+FROM sys.dm_db_resource_stats
+ORDER BY end_time DESC;
