@@ -8,3 +8,20 @@ JOIN sys.query_store_runtime_stats AS rs
     ON p.plan_id = rs.plan_id
 ORDER BY rs.avg_duration DESC
 go
+
+
+==Azure SQL DB
+SELECT 
+    qsrs.plan_id,
+    qsrs.execution_type_desc,
+    qsrs.first_execution_time,
+    qsrs.last_execution_time,
+    qsrs.count_executions,
+    qsrs.avg_logical_io_reads,
+    qsrs.avg_logical_io_writes,
+    qsrs.avg_physical_io_reads,
+    CAST(qsrs.avg_log_bytes_used / 1024.0 / 1024.0 AS DECIMAL(10,2)) AS avg_log_mb_used
+FROM sys.query_store_runtime_stats qsrs
+INNER JOIN sys.query_store_plan qsp ON qsrs.plan_id = qsp.plan_id
+WHERE qsrs.first_execution_time >= DATEADD(day, -7, GETDATE())
+ORDER BY qsrs.avg_log_bytes_used DESC;
