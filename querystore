@@ -1,36 +1,25 @@
 SELECT
+    SCHEMA_NAME(t.schema_id) AS SchemaName,
     t.name AS TableName,
     ps.name AS PartitionSchemeName,
-    ds.name AS PartitionFileGroup,
-    p.partition_number AS PartitionNumber,
-    p.rows AS NumberOfRows,
+    pf.name AS PartitionFunctionName,
     c.name AS PartitionColumn
 FROM sys.tables t
 JOIN sys.indexes i 
     ON t.object_id = i.object_id 
-    AND i.index_id IN (0, 1) -- 0=Heap, 1=Clustered Index (the table itself)
-JOIN sys.partitions p 
-    ON i.object_id = p.object_id 
-    AND i.index_id = p.index_id
-LEFT JOIN sys.partition_schemes ps 
-    ON i.data_space_id = ps.data_space_id
-LEFT JOIN sys.destination_data_spaces dds 
-    ON ps.data_space_id = dds.partition_scheme_id 
-    AND p.partition_number = dds.destination_id
-LEFT JOIN sys.data_spaces ds 
-    ON dds.data_space_id = ds.data_space_id
-LEFT JOIN sys.partition_range_values rv 
-    ON ps.data_space_id = rv.partition_scheme_id 
-    AND p.partition_number = rv.boundary_id
-LEFT JOIN sys.index_columns ic 
+    AND i.index_id IN (0, 1)
+JOIN sys.partition_schemes ps 
+    ON i.data_space_id = ps.data_space_id -- Correct Join
+JOIN sys.partition_functions pf 
+    ON ps.function_id = pf.function_id
+JOIN sys.index_columns ic 
     ON ic.object_id = i.object_id 
     AND ic.index_id = i.index_id 
-    AND ic.partition_ordinal > 0 -- This identifies the partition column
-LEFT JOIN sys.columns c 
+    AND ic.partition_ordinal > 0
+JOIN sys.columns c 
     ON t.object_id = c.object_id 
     AND ic.column_id = c.column_id
-WHERE t.name = 'YourTableName'  -- Replace with your table name
-    AND SCHEMA_NAME(t.schema_id) = 'YourSchemaName'; -- Optional: specify schema
+ORDER BY SchemaName, TableName;
 
 
 
