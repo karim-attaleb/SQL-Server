@@ -139,6 +139,7 @@ function Invoke-DatabaseCreation {
         # Create database with multiple data files
         $dataFiles = @()
         $logPath = "$($LogDrive):\$($server.InstanceName)\log"
+        $logFileName = "$Database_log.ldf"  # Log file name
 
         # Create data files configuration
         for ($i = 0; $i -lt $optimalFileCount; $i++) {
@@ -173,40 +174,45 @@ function Invoke-DatabaseCreation {
             }
         }
 
-        # Create database
+        # Create database using the correct dbatools syntax
         if ($PSCmdlet.ShouldProcess("Database $Database", "Create database")) {
-            # Create file specifications
-            $fileSpec = @()
-            foreach ($i in 0..($optimalFileCount-1)) {
-                $file = $dataFiles[$i]
-                $fileSpec += @{
-                    Name = $file.Name
-                    FileName = $file.FileName
-                    Size = $file.Size
-                    Growth = $file.Growth
-                }
-            }
+            $primaryFile = $dataFiles[0]
 
-            # Define log file parameters
-            $logFileName = "$Database_log.ldf"
-            $logFilePath = "$logPath\$logFileName"
-
+            # Create the database with primary file
             $newDbParams = @{
                 SqlInstance = $SqlInstance
                 Name = $Database
-                File = $fileSpec
-                LogFile = @{
-                    Name = "$Database_log"  # Logical name for the log file
-                    FileName = $logFilePath  # Physical path to the log file
-                    Size = (Convert-SizeToInt -SizeString $LogSize)
-                    Growth = (Convert-SizeToInt -SizeString $LogGrowth)
-                }
+                DataFilePath = $primaryFile.FileName
+                DataFileSize = $primaryFile.Size
+                DataFileGrowth = $primaryFile.Growth
+                LogFilePath = "$logPath\$logFileName"
+                LogFileSize = (Convert-SizeToInt -SizeString $LogSize)
+                LogFileGrowth = (Convert-SizeToInt -SizeString $LogGrowth)
                 TrustServerCertificate = $true
             }
 
             try {
+                # Create the database
                 $newDb = New-DbaDatabase @newDbParams
-                Write-Log -Message "Successfully created database: $Database" -Level Success
+                Write-Log -Message "Successfully created database with primary file: $Database" -Level Success
+
+                # Add secondary data files if any
+                if ($dataFiles.Count -gt 1) {
+                    for ($i = 1; $i -lt $dataFiles.Count; $i++) {
+                        $file = $dataFiles[$i]
+                        $addFileParams = @{
+                            SqlInstance = $SqlInstance
+                            Database = $Database
+                            Name = $file.Name
+                            FileName = $file.FileName
+                            Size = $file.Size
+                            Growth = $file.Growth
+                            TrustServerCertificate = $true
+                        }
+                        Add-DbaDbFile @addFileParams
+                        Write-Log -Message "Added secondary data file: $($file.Name)" -Level Success
+                    }
+                }
 
                 # Set database owner to SA
                 $db = Get-DbaDatabase -SqlInstance $SqlInstance -Database $Database
