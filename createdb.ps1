@@ -39,22 +39,6 @@ function Invoke-DatabaseCreation {
     Set-StrictMode -Version Latest
     [System.Net.ServicePointManager]::ServerCertificateValidationCallback = { $true }
 
-    # Function to convert size string to bytes
-    function Convert-SizeToBytes {
-        param([string]$SizeString)
-        if ($SizeString -match '^(\d+)(MB|GB|TB)$') {
-            $size = [double]$matches[1]
-            $unit = $matches[2]
-            switch ($unit) {
-                'MB' { return $size * 1MB }
-                'GB' { return $size * 1GB }
-                'TB' { return $size * 1TB }
-                default { return $size }
-            }
-        }
-        return $SizeString
-    }
-
     # Function to convert size string to integer
     function Convert-SizeToInt {
         param([string]$SizeString)
@@ -69,19 +53,6 @@ function Invoke-DatabaseCreation {
             }
         }
         return $SizeString
-    }
-
-    # Function to determine optimal number of data files
-    function Get-OptimalDataFileCount {
-        param($DataSize, $Threshold, $RequestedCount, $AvailableDrives)
-
-        $dataSizeBytes = Convert-SizeToBytes -SizeString $DataSize
-        $thresholdBytes = Convert-SizeToBytes -SizeString $Threshold
-
-        if ($RequestedCount -gt 0) { return [Math]::Min($RequestedCount, $AvailableDrives.Count) }
-        if ($dataSizeBytes -lt $thresholdBytes) { return 1 }
-        $fileCount = [Math]::Min($AvailableDrives.Count, 8)
-        return [Math]::Max($fileCount, 1)
     }
 
     # Define Write-Log function
@@ -108,7 +79,6 @@ function Invoke-DatabaseCreation {
         # Validate SQL connection
         $connectParams = @{
             SqlInstance = $SqlInstance
-            ErrorAction = 'Stop'
             TrustServerCertificate = $true
         }
         $server = Connect-DbaInstance @connectParams
@@ -121,13 +91,11 @@ function Invoke-DatabaseCreation {
             $dataDrives = @("G")
         }
 
-        # Determine optimal number of data files
-        $optimalFileCount = Get-OptimalDataFileCount -DataSize $DataSize -Threshold $FileSizeThreshold -RequestedCount $NumberOfDataFiles -AvailableDrives $dataDrives
-        Write-Log -Message "Using $optimalFileCount data file(s) across $($dataDrives.Count) drive(s)" -Level Info
-
-        # Calculate size per file
-        $dataSizeBytes = Convert-SizeToBytes -SizeString $DataSize
-        $sizePerFileBytes = [Math]::Ceiling($dataSizeBytes / $optimalFileCount)
+        # Convert sizes to integers
+        $primarySize = [int]($DataSize -replace 'MB', '')
+        $logSizeMB = [int]($LogSize -replace 'MB', '')
+        $primaryGrowth = [int]($DataGrowth -replace 'MB', '')
+        $logGrowthMB = [int]($LogGrowth -replace 'MB', '')
 
         # Check if database already exists
         $existingDb = Get-DbaDatabase -SqlInstance $SqlInstance -Database $Database
@@ -136,83 +104,41 @@ function Invoke-DatabaseCreation {
             return $Database
         }
 
-        # Create database with multiple data files
-        $dataFiles = @()
-        $logPath = "$($LogDrive):\$($server.InstanceName)\log"
-        $logFileName = "$Database_log.ldf"  # Log file name
-
-        # Create data files configuration
-        for ($i = 0; $i -lt $optimalFileCount; $i++) {
-            $driveIndex = $i % $dataDrives.Count
-            $drive = $dataDrives[$driveIndex]
-            $dataPath = "$($drive):\$($server.InstanceName)\data"
+        # Create database with primary file
+        if ($PSCmdlet.ShouldProcess("Database $Database", "Create database")) {
+            $primaryDataPath = "$($dataDrives[0]):\$($server.InstanceName)\data\$Database.mdf"
+            $logPath = "$($LogDrive):\$($server.InstanceName)\log\$Database_log.ldf"
 
             # Ensure directories exist
-            if (-not (Test-Path $dataPath)) {
-                if ($PSCmdlet.ShouldProcess("$dataPath", "Create data directory")) {
-                    New-Item -ItemType Directory -Path $dataPath -Force | Out-Null
-                    Write-Log -Message "Created data directory: $dataPath" -Level Info
-                }
+            if (-not (Test-Path "$($dataDrives[0]):\$($server.InstanceName)\data")) {
+                New-Item -ItemType Directory -Path "$($dataDrives[0]):\$($server.InstanceName)\data" -Force | Out-Null
+                Write-Log -Message "Created data directory: $($dataDrives[0]):\$($server.InstanceName)\data" -Level Info
             }
 
-            $logicalName = if ($i -eq 0) { $Database } else { "$($Database)_$i" }
-            $fileName = if ($i -eq 0) { "$Database.mdf" } else { "$Database`_$i.ndf" }
-
-            $dataFiles += @{
-                Name = $logicalName
-                FileName = "$dataPath\$fileName"
-                Size = $sizePerFileBytes / 1MB
-                Growth = (Convert-SizeToInt -SizeString $DataGrowth)
+            if (-not (Test-Path "$($LogDrive):\$($server.InstanceName)\log")) {
+                New-Item -ItemType Directory -Path "$($LogDrive):\$($server.InstanceName)\log" -Force | Out-Null
+                Write-Log -Message "Created log directory: $($LogDrive):\$($server.InstanceName)\log" -Level Info
             }
-        }
 
-        # Ensure log directory exists
-        if (-not (Test-Path $logPath)) {
-            if ($PSCmdlet.ShouldProcess("$logPath", "Create log directory")) {
-                New-Item -ItemType Directory -Path $logPath -Force | Out-Null
-                Write-Log -Message "Created log directory: $logPath" -Level Info
-            }
-        }
-
-        # Create database using the correct dbatools syntax
-        if ($PSCmdlet.ShouldProcess("Database $Database", "Create database")) {
-            $primaryFile = $dataFiles[0]
-
-            # Create the database with primary file
+            # Create database with exact parameters from dbatools
             $newDbParams = @{
                 SqlInstance = $SqlInstance
                 Name = $Database
-                DataFilePath = $primaryFile.FileName
-                DataFileSize = $primaryFile.Size
-                DataFileGrowth = $primaryFile.Growth
-                LogFilePath = "$logPath\$logFileName"
-                LogFileSize = (Convert-SizeToInt -SizeString $LogSize)
-                LogFileGrowth = (Convert-SizeToInt -SizeString $LogGrowth)
+                DataFilePath = $primaryDataPath
+                LogFilePath = $logPath
+                PrimaryFileSize = $primarySize
+                LogSize = $logSizeMB
+                PrimaryFileGrowth = $primaryGrowth
+                LogGrowth = $logGrowthMB
+                SecondaryFileCount = [Math]::Max(0, $NumberOfDataFiles - 1)
+                SecondaryFileGrowth = $primaryGrowth
                 TrustServerCertificate = $true
             }
 
             try {
                 # Create the database
                 $newDb = New-DbaDatabase @newDbParams
-                Write-Log -Message "Successfully created database with primary file: $Database" -Level Success
-
-                # Add secondary data files if any
-                if ($dataFiles.Count -gt 1) {
-                    for ($i = 1; $i -lt $dataFiles.Count; $i++) {
-                        $file = $dataFiles[$i]
-                        $addFileParams = @{
-                            SqlInstance = $SqlInstance
-                            Database = $Database
-                            Name = $file.Name
-                            FileName = $file.FileName
-                            Size = $file.Size
-                            Growth = $file.Growth
-                            TrustServerCertificate = $true
-                        }
-                        Add-DbaDbFile @addFileParams
-                        Write-Log -Message "Added secondary data file: $($file.Name)" -Level Success
-                    }
-                }
+                Write-Log -Message "Successfully created database: $Database" -Level Success
 
                 # Set database owner to SA
                 $db = Get-DbaDatabase -SqlInstance $SqlInstance -Database $Database
