@@ -1,3 +1,15 @@
-[2025-09-16 18:17:10] [Error] Script execution failed: The variable '$Database_log' cannot be retrieved because it has not been set.
-[2025-09-16 18:17:10] [Error] Stack trace: at Invoke-DatabaseCreation, C:\MGMT\BIN\test_db_create.ps1: line 142
-at <ScriptBlock>, <No file>: line 15
+# Define parameters using splatting
+$dbParams = @{
+    SqlInstance      = "S2S005G2\POD07_DEV"
+    Database         = "DB_MSS0_DEMO"
+    DataDrive        = "G,H"
+    LogDrive         = "E"
+    DataSize         = "200MB"
+    DataGrowth       = "100MB"
+    LogSize          = "100MB"
+    LogGrowth        = "100MB"
+    NumberOfDataFiles = 4
+}
+
+# Execute the function with splatting
+Invoke-DatabaseCreation @dbParams
