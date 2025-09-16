@@ -1,5 +1,3 @@
-[2025-09-16 15:49:14] [Error] Failed to create database using dbatools: Cannot process argument transformation on parameter 'LogGrowth'. Cannot convert value "100MB" to type "System.Int32". Error: "Input s
-tring was not in a correct format."
-[2025-09-16 15:49:14] [Error] Script execution failed: Cannot process argument transformation on parameter 'LogGrowth'. Cannot convert value "100MB" to type "System.Int32". Error: "Input string was not in 
-a correct format."
-[2025-09-16 15:49:14] [Error] Stack trace: at Invoke-DatabaseCreation, <No file>: line 336
+[2025-09-16 18:06:04] [Error] Script execution failed: The variable '$Database_log' cannot be retrieved because it has not been set.
+[2025-09-16 18:06:04] [Error] Stack trace: at Invoke-DatabaseCreation, C:\MGMT\BIN\test_db_create.ps1: line 179
+at <ScriptBlock>, <No file>: line 15
