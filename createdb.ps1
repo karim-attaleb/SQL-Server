@@ -139,7 +139,7 @@ function Invoke-DatabaseCreation {
         # Create database with multiple data files
         $dataFiles = @()
         $logPath = "$($LogDrive):\$($server.InstanceName)\log"
-        $logFileName = "$Database_log.ldf"  # Define log file name
+        $logFileName = "$Database" + "_log.ldf"  # Properly construct the log file name
 
         # Create data files configuration
         for ($i = 0; $i -lt $optimalFileCount; $i++) {
@@ -206,7 +206,7 @@ function Invoke-DatabaseCreation {
                 Name = $Database
                 File = $fileSpec
                 LogFile = @{
-                    Name = "$Database_log"
+                    Name = "$Database" + "_log"  # Use string concatenation
                     FileName = "$logPath\$logFileName"
                     Size = (Convert-SizeToInt -SizeString $LogSize)
                     Growth = (Convert-SizeToInt -SizeString $LogGrowth)
