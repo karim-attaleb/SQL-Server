@@ -139,6 +139,7 @@ function Invoke-DatabaseCreation {
         # Create database with multiple data files
         $dataFiles = @()
         $logPath = "$($LogDrive):\$($server.InstanceName)\log"
+        $logFileName = "$Database_log.ldf"  # Define log file name
 
         # Create data files configuration
         for ($i = 0; $i -lt $optimalFileCount; $i++) {
@@ -176,46 +177,45 @@ function Invoke-DatabaseCreation {
         # Create database
         if ($PSCmdlet.ShouldProcess("Database $Database", "Create database")) {
             $primaryFile = $dataFiles[0]
-            $newDbParams = @{
-                SqlInstance = $SqlInstance
-                Name = $Database
-                File = @(
-                    @{
-                        Name = $primaryFile.Name
-                        FileName = $primaryFile.FileName
-                        Size = $primaryFile.Size
-                        Growth = $primaryFile.Growth
-                    }
-                )
-                LogFile = @{
-                    Name = "$Database_log"
-                    FileName = "$logPath\$($Database)_log.ldf"
-                    Size = (Convert-SizeToInt -SizeString $LogSize)
-                    Growth = (Convert-SizeToInt -SizeString $LogGrowth)
+
+            # Create primary data file
+            $fileSpec = @(
+                @{
+                    Name = $primaryFile.Name
+                    FileName = $primaryFile.FileName
+                    Size = $primaryFile.Size
+                    Growth = $primaryFile.Growth
                 }
-            }
+            )
 
-            $newDb = New-DbaDatabase @newDbParams
-            Write-Log -Message "Successfully created database with primary file: $Database" -Level Success
-
-            # Add secondary data files if any
+            # Add secondary files if any
             if ($dataFiles.Count -gt 1) {
                 for ($i = 1; $i -lt $dataFiles.Count; $i++) {
                     $file = $dataFiles[$i]
-                    $addFileParams = @{
-                        SqlInstance = $SqlInstance
-                        Database = $Database
-                        File = @{
-                            Name = $file.Name
-                            FileName = $file.FileName
-                            Size = $file.Size
-                            Growth = $file.Growth
-                        }
+                    $fileSpec += @{
+                        Name = $file.Name
+                        FileName = $file.FileName
+                        Size = $file.Size
+                        Growth = $file.Growth
                     }
-                    Add-DbaDbFile @addFileParams
-                    Write-Log -Message "Added secondary data file: $($file.Name)" -Level Success
                 }
             }
+
+            $newDbParams = @{
+                SqlInstance = $SqlInstance
+                Name = $Database
+                File = $fileSpec
+                LogFile = @{
+                    Name = "$Database_log"
+                    FileName = "$logPath\$logFileName"
+                    Size = (Convert-SizeToInt -SizeString $LogSize)
+                    Growth = (Convert-SizeToInt -SizeString $LogGrowth)
+                }
+                TrustServerCertificate = $true
+            }
+
+            $newDb = New-DbaDatabase @newDbParams
+            Write-Log -Message "Successfully created database: $Database" -Level Success
 
             # Set database owner to SA
             $db = Get-DbaDatabase -SqlInstance $SqlInstance -Database $Database
