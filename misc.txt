@@ -13,3 +13,12 @@ $dbParams = @{
 
 # Execute the function with splatting
 Invoke-DatabaseCreation @dbParams
+
+
+-- Check for high write latency on the log drive
+SELECT
+    io_stall_write_ms / NULLIF(num_of_writes, 0) AS avg_write_latency_ms,
+    io_stall_write_ms,
+    num_of_writes
+FROM sys.dm_io_virtual_file_stats(DB_ID('mydb'), 2) -- 2 = log file
+WHERE file_id = 2;
