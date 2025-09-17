@@ -120,6 +120,21 @@ Get-SmbClientConfiguration | Select Dialect, EnableMultichannel
 Get-SmbServerConfiguration # (Run on Cohesity if possible)
 
 
+-- Identify long-running log backups
+SELECT
+    session_id,
+    command,
+    start_time,
+    percent_complete,
+    estimated_completion_time,
+    wait_type,
+    wait_time,
+    wait_resource
+FROM sys.dm_exec_requests
+WHERE command LIKE '%LOG%' AND wait_type = 'BACKUPIO';
+
+
+
 ---
 
 **SQL Server**: SQLPROD01 (10.0.0.X)
