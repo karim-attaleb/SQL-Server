@@ -1,5 +1,5 @@
 ================================================================================
-| KBC SQL Server Log Backup Performance Issue - Cohesity Diagnosis Request      |
+| SQL Server Log Backup Performance Issue - Cohesity Diagnosis Request      |
 ================================================================================
 
 --- [ BACKGROUND ] ------------------------------------------------------------
@@ -85,7 +85,7 @@ Expected Output:
   | Setting       | Value      | Required Value | Notes                     |
   |---------------|------------|----------------|---------------------------|
   | Protocol      | SMB 3.1.1  | SMB 3.1.1      | **Downgrade if SMB 1/2**  |
-  | Encryption    | Enabled    | Enabled        | KBC compliance            |
+  | Encryption    | Enabled    | Enabled        | compliance            |
   | QoS Policy    | None       | None/Unlimited | **Check for throttling**  |
 
 ---
@@ -115,6 +115,6 @@ Expected Output:
 **Next Steps**: We’ll divert backups to local disk temporarily if unresolved by [ETA].
 
 ---
-**Contact**: [Your Name] | [Your Email] | [Your Phone]
+
 **SQL Server**: SQLPROD01 (10.0.0.X)
 **Cohesity Share**: \\cohesity\sql_backups\logs
