@@ -114,6 +114,12 @@ Expected Output:
 
 **Next Steps**: We’ll divert backups to local disk temporarily if unresolved by [ETA].
 
+
+
+Get-SmbClientConfiguration | Select Dialect, EnableMultichannel
+Get-SmbServerConfiguration # (Run on Cohesity if possible)
+
+
 ---
 
 **SQL Server**: SQLPROD01 (10.0.0.X)
