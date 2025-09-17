@@ -107,7 +107,7 @@ function Invoke-DatabaseCreation {
         # Create database with primary file
         if ($PSCmdlet.ShouldProcess("Database $Database", "Create database")) {
             $primaryDataPath = "$($dataDrives[0]):\$($server.InstanceName)\data\$Database.mdf"
-            $logPath = "$($LogDrive):\$($server.InstanceName)\log\$Database_log.ldf"
+            $logPath = "$($LogDrive):\$($server.InstanceName)\log\${Database}_log.ldf"
 
             # Ensure directories exist
             if (-not (Test-Path "$($dataDrives[0]):\$($server.InstanceName)\data")) {
@@ -132,7 +132,7 @@ function Invoke-DatabaseCreation {
                 LogGrowth = $logGrowthMB
                 SecondaryFileCount = [Math]::Max(0, $NumberOfDataFiles - 1)
                 SecondaryFileGrowth = $primaryGrowth
-                TrustServerCertificate = $true
+
             }
 
             try {
@@ -143,7 +143,7 @@ function Invoke-DatabaseCreation {
                 # Set database owner to SA
                 $db = Get-DbaDatabase -SqlInstance $SqlInstance -Database $Database
                 if ($db.Owner -ne 'sa') {
-                    Set-DbaDatabaseOwner -SqlInstance $SqlInstance -Database $Database -TargetLogin 'sa'
+                    Set-DbaDbOwner -SqlInstance $SqlInstance -Database $Database -TargetLogin 'sa'
                     Write-Log -Message "Changed database owner to SA" -Level Success
                 }
 
@@ -154,11 +154,11 @@ function Invoke-DatabaseCreation {
                         SqlInstance = $SqlInstance
                         Database = $Database
                         State = 'ReadWrite'
-                        StaleQueryThreshold = [timespan]::FromDays(31)
+                        StaleQueryThreshold = [timespan]::FromDays(31).Days
                         CaptureMode = 'Auto'
-                        MaxStorageSize = 100
-                        DataFlushInterval = [timespan]::FromSeconds(900)
-                        SizeBasedCleanupMode = 'Auto'
+                        MaxSize = 100
+                        FlushInterval = [timespan]::FromSeconds(900).TotalSeconds
+                        CleanupMode = 'Auto'
                         MaxPlansPerQuery = 100
                     }
                     Set-DbaDbQueryStoreOption @queryStoreConfig
