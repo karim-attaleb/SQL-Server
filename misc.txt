@@ -1,24 +1,120 @@
-# Define parameters using splatting
-$dbParams = @{
-    SqlInstance      = "S2S005G2\POD07_DEV"
-    Database         = "DB_MSS0_DEMO"
-    DataDrive        = "G,H"
-    LogDrive         = "E"
-    DataSize         = "200MB"
-    DataGrowth       = "100MB"
-    LogSize          = "100MB"
-    LogGrowth        = "100MB"
-    NumberOfDataFiles = 4
-}
+================================================================================
+| KBC SQL Server Log Backup Performance Issue - Cohesity Diagnosis Request      |
+================================================================================
 
-# Execute the function with splatting
-Invoke-DatabaseCreation @dbParams
+--- [ BACKGROUND ] ------------------------------------------------------------
+SQL Server transaction log backups to \\cohesity\sql_backups\logs are taking
+18+ hours (vs. 5 minutes to local disk), causing production risks:
+- Transaction logs growing uncontrollably.
+- BACKUPIO waits in sp_WhoIsActive.
+- RPO violations.
 
+Evidence suggests the bottleneck is on the Cohesity side.
 
--- Check for high write latency on the log drive
-SELECT
-    io_stall_write_ms / NULLIF(num_of_writes, 0) AS avg_write_latency_ms,
-    io_stall_write_ms,
-    num_of_writes
-FROM sys.dm_io_virtual_file_stats(DB_ID('mydb'), 2) -- 2 = log file
-WHERE file_id = 2;
+---
+
+--- [ ACTION REQUESTED ] -------------------------------------------------------
+Please run the following Cohesity CLI commands and provide outputs to diagnose:
+
+---
+
+### 1. Cluster Health
+Command:
+  cohesitycli show nodes
+
+Expected Output:
+  | Node IP      | CPU % | Memory % | Disk Latency (ms) |
+  |--------------|-------|----------|-------------------|
+  | 10.0.0.1     | <80%  | <70%     | <20ms             |  <-- Red flag if higher
+
+---
+
+### 2. SMB Share Performance (Critical)
+Command:
+  cohesitycli show stats --stats_type fs --node <NODE_HOSTING_SQL_BACKUPS> --interval 1h
+
+Expected Output:
+  | Metric            | Value   | Threshold | Notes                     |
+  |-------------------|---------|-----------|---------------------------|
+  | fs_write_latency   | <10ms   | >20ms     | **Bottleneck if high**    |
+  | fs_read_latency    | <10ms   | >20ms     |                           |
+  | fs_throughput      | >50MB/s | <50MB/s   | **Current: ~5MB/s (slow)**|
+
+---
+
+### 3. Network Performance
+Command:
+  cohesitycli show stats --stats_type net --node <NODE_HOSTING_SQL_BACKUPS> --interval 1h
+
+Expected Output:
+  | Metric          | Value      | Threshold   | Notes                     |
+  |-----------------|------------|-------------|---------------------------|
+  | net_tx_bytes    | >100MB/s   | <50MB/s     | **Underutilized link**    |
+  | net_rx_bytes    | >100MB/s   | <50MB/s     |                           |
+  | packet_drops    | 0          | >0          | **Network issues**        |
+
+---
+
+### 4. QoS Policies
+Command:
+  cohesitycli view qos_policies
+
+Expected Output:
+  | Policy Name   | Type   | Limit (MB/s) | Notes                     |
+  |---------------|--------|--------------|---------------------------|
+  | sql_backups   | SMB    | Unlimited    | **Red flag if <100MB/s**  |
+
+---
+
+### 5. SMB Sessions
+Command:
+  cohesitycli show smb_sessions
+
+Expected Output:
+  | Client IP     | Share Path               | Bytes Written | Throughput  |
+  |---------------|--------------------------|---------------|--------------|
+  | <SQL_IP>      | \\cohesity\sql_backups   | High          | **<5MB/s**   | <-- Bottleneck
+
+---
+
+### 6. Share Configuration
+Command:
+  cohesitycli show views --name sql_backups
+
+Expected Output:
+  | Setting       | Value      | Required Value | Notes                     |
+  |---------------|------------|----------------|---------------------------|
+  | Protocol      | SMB 3.1.1  | SMB 3.1.1      | **Downgrade if SMB 1/2**  |
+  | Encryption    | Enabled    | Enabled        | KBC compliance            |
+  | QoS Policy    | None       | None/Unlimited | **Check for throttling**  |
+
+---
+
+--- [ OBSERVED SYMPTOMS ] -------------------------------------------------------
+| Metric               | Local Disk | Cohesity Share | Notes                     |
+|----------------------|------------|----------------|---------------------------|
+| Log backup time      | 5 min      | 18+ hours      | **300x slower**           |
+| Throughput           | 200MB/s    | 5MB/s          | **Cohesity throttling**   |
+| BACKUPIO waits       | 0ms        | Persistent     | SQL waiting on I/O        |
+
+---
+
+--- [ REQUEST ] ---------------------------------------------------------------
+1. Confirm if Cohesity is throttling SMB traffic (QoS, network, or storage).
+2. Check for:
+   - SMB protocol misconfiguration (must be 3.1.1).
+   - Missing SMB Multichannel.
+   - Overloaded storage nodes.
+3. Propose fixes:
+   - Increase QoS limits for `sql_backups`.
+   - Move share to a less loaded node.
+   - Enable SMB Multichannel.
+
+**Impact**: Risk of production outage if logs fill up.
+
+**Next Steps**: We’ll divert backups to local disk temporarily if unresolved by [ETA].
+
+---
+**Contact**: [Your Name] | [Your Email] | [Your Phone]
+**SQL Server**: SQLPROD01 (10.0.0.X)
+**Cohesity Share**: \\cohesity\sql_backups\logs
