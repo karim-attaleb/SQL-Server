@@ -139,3 +139,27 @@ WHERE command LIKE '%LOG%' AND wait_type = 'BACKUPIO';
 
 **SQL Server**: SQLPROD01 (10.0.0.X)
 **Cohesity Share**: \\cohesity\sql_backups\logs
+
+SELECT
+    session_id,
+    command,
+    start_time,
+    percent_complete,
+    estimated_completion_time,
+    DATEADD(ms, estimated_completion_time, GETDATE()) AS estimated_end_time,
+    DATEDIFF(SECOND, start_time, GETDATE()) AS elapsed_time_seconds,
+    CASE
+        WHEN percent_complete > 0 THEN
+            (CONVERT(DECIMAL(10,2), (CONVERT(DECIMAL(10,2), backup_size / 1024 / 1024) * percent_complete / 100) /
+            (DATEDIFF(SECOND, start_time, GETDATE()) / 60.0))
+        ELSE NULL
+    END AS current_throughput_mb_per_min,
+    text AS backup_command,
+    wait_type,
+    wait_time,
+    wait_resource
+FROM sys.dm_exec_requests
+CROSS APPLY sys.dm_exec_sql_text(sql_handle)
+WHERE command LIKE '%LOG%' AND wait_type = 'BACKUPIO';
+
+
