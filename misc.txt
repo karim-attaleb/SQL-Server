@@ -141,35 +141,32 @@ WHERE command LIKE '%LOG%' AND wait_type = 'BACKUPIO';
 **Cohesity Share**: \\cohesity\sql_backups\logs
 
 SELECT
-    session_id,
-    command,
-    start_time,
-    percent_complete,
-    estimated_completion_time,
-    DATEADD(ms, estimated_completion_time, GETDATE()) AS estimated_end_time,
-    DATEDIFF(SECOND, start_time, GETDATE()) AS elapsed_time_seconds,
+    r.session_id,
+    r.command,
+    r.start_time,
+    r.percent_complete,
+    r.estimated_completion_time,
+    DATEADD(ms, r.estimated_completion_time, GETDATE()) AS estimated_end_time,
+    DATEDIFF(SECOND, r.start_time, GETDATE()) AS elapsed_time_seconds,
     CASE
-        WHEN percent_complete > 0 AND DATEDIFF(SECOND, start_time, GETDATE()) > 0 THEN
-            (backup_size / 1024.0 / 1024.0) * (percent_complete / 100.0) /
-            (DATEDIFF(SECOND, start_time, GETDATE()) / 60.0)
+        WHEN r.percent_complete > 0 AND DATEDIFF(SECOND, r.start_time, GETDATE()) > 0 THEN
+            -- Estimate throughput based on progress and time
+            (r.percent_complete / 100.0) * 100 /
+            (DATEDIFF(SECOND, r.start_time, GETDATE()) / 60.0)
         ELSE NULL
-    END AS current_throughput_mb_per_min,
-    text AS backup_command,
-    wait_type,
-    wait_time,
-    wait_resource,
-    -- Additional backup size info (if available)
-    (SELECT backup_size / 1024.0 / 1024.0
-     FROM msdb.dbo.backupset bs
-     WHERE bs.database_name = DB_NAME()
-     AND bs.backup_start_date = (
-         SELECT MAX(backup_start_date)
-         FROM msdb.dbo.backupset
-         WHERE database_name = DB_NAME()
-         AND type = 'L'
-     )) AS last_log_backup_size_mb
-FROM sys.dm_exec_requests
-CROSS APPLY sys.dm_exec_sql_text(sql_handle)
-WHERE command LIKE '%LOG%';
+    END AS estimated_throughput_mb_per_min,
+    r.wait_type,
+    r.wait_time,
+    r.wait_resource,
+    t.text AS backup_command,
+    -- Get approximate backup size from last successful log backup
+    (SELECT TOP 1 backup_size / 1024.0 / 1024.0
+     FROM msdb.dbo.backupset
+     WHERE database_name = DB_NAME()
+     AND type = 'L'
+     ORDER BY backup_finish_date DESC) AS last_log_backup_size_mb
+FROM sys.dm_exec_requests r
+CROSS APPLY sys.dm_exec_sql_text(r.sql_handle) t
+WHERE r.command LIKE '%LOG%';
 
 
