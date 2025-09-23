@@ -7,6 +7,9 @@ A comprehensive PowerShell solution for migrating SQL Server instances to SQL Se
 - **Selective Database Export**: Choose specific databases or export all user databases
 - **System Database Control**: Configurable exclusion of system databases (enabled by default)
 - **Collation Compatibility Checking**: Warns about collation differences between source and destination
+- **Encryption Support**: Both at-rest (backup files) and in-flight (SQL connections) encryption
+- **Backup Encryption**: AES128, AES192, AES256, and TRIPLEDES algorithms with certificate-based encryption
+- **Connection Encryption**: TLS/SSL encryption for SQL Server connections with certificate validation
 - **Flexible Operation Modes**: Backup-only, restore-only, or full migration
 - **Additional Components**: Optional export of logins, SQL Agent jobs, linked servers
 - **Robust Error Handling**: Comprehensive logging and error reporting
@@ -67,6 +70,10 @@ sql-server-instance-upgrade/
 | `ExcludeSystemDatabases` | Switch | `$true` | Exclude system databases |
 | `IncludeAllUserDatabases` | Switch | `$false` | Include all user databases |
 | `IgnoreCollationWarnings` | Switch | `$false` | Suppress collation warnings |
+| `EncryptConnections` | Switch | `$false` | Enable TLS/SSL encryption for connections |
+| `TrustServerCertificate` | Switch | `$false` | Trust server certificates (use with caution) |
+| `BackupEncryptionAlgorithm` | String | None | Encryption algorithm for backup files |
+| `BackupEncryptionCertificate` | String | None | Certificate name for backup encryption |
 | `IncludeLogins` | Switch | `$false` | Export SQL Server logins |
 | `IncludeJobs` | Switch | `$false` | Export SQL Agent jobs |
 | `OverwriteExisting` | Switch | `$false` | Overwrite existing databases |
@@ -124,6 +131,33 @@ sql-server-instance-upgrade/
     -ExportPath "D:\Migration" `
     -IncludeAllUserDatabases `
     -IncludeLogins
+```
+
+### Encrypted Migration with Backup Encryption
+```powershell
+.\scripts\Export-SqlServerInstance.ps1 `
+    -SourceInstance "PROD-SQL01" `
+    -DestinationInstance "SQL2022-01" `
+    -ExportPath "D:\Migration" `
+    -EncryptConnections `
+    -BackupEncryptionAlgorithm "AES256" `
+    -BackupEncryptionCertificate "BackupCert" `
+    -IncludeLogins
+```
+
+### Maximum Security Migration
+```powershell
+.\scripts\Export-SqlServerInstance.ps1 `
+    -SourceInstance "PROD-SQL01" `
+    -DestinationInstance "SQL2022-01" `
+    -ExportPath "D:\SecureMigration" `
+    -EncryptConnections `
+    -TrustServerCertificate `
+    -BackupEncryptionAlgorithm "AES256" `
+    -BackupEncryptionCertificate "BackupCert" `
+    -IncludeAllUserDatabases `
+    -IncludeLogins `
+    -IncludeJobs
 ```
 
 ## 🤝 Contributing

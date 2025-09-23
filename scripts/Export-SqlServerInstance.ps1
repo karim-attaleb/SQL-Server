@@ -59,12 +59,27 @@
     
 .PARAMETER LogPath
     Path for detailed logging (optional)
+
+.PARAMETER EncryptConnections
+    Enable TLS/SSL encryption for SQL Server connections (in-flight encryption)
+    
+.PARAMETER TrustServerCertificate
+    Trust server certificates when using encrypted connections (use with caution)
+    
+.PARAMETER BackupEncryptionAlgorithm
+    Encryption algorithm for backup files: AES128, AES192, AES256, or TRIPLEDES
+    
+.PARAMETER BackupEncryptionCertificate
+    Certificate name in master database for backup encryption (at-rest encryption)
     
 .EXAMPLE
     .\Export-SqlServerInstance.ps1 -SourceInstance "Server1\Instance1" -DestinationInstance "Server2\Instance2" -ExportPath "C:\Backups"
     
 .EXAMPLE
     .\Export-SqlServerInstance.ps1 -SourceInstance "Server1" -DestinationInstance "Server2" -DatabaseNames @("DB1", "DB2") -IncludeLogins -IncludeJobs
+
+.EXAMPLE
+    .\Export-SqlServerInstance.ps1 -SourceInstance "Server1" -DestinationInstance "Server2" -ExportPath "C:\Backups" -EncryptConnections -BackupEncryptionAlgorithm "AES256" -BackupEncryptionCertificate "BackupCert"
 #>
 
 [CmdletBinding()]
@@ -105,6 +120,15 @@ param(
     [switch]$IncludeAllUserDatabases,
     
     [switch]$IgnoreCollationWarnings,
+    
+    [switch]$EncryptConnections,
+    
+    [switch]$TrustServerCertificate,
+    
+    [ValidateSet("AES128", "AES192", "AES256", "TRIPLEDES")]
+    [string]$BackupEncryptionAlgorithm,
+    
+    [string]$BackupEncryptionCertificate,
     
     [string]$LogPath
 )
@@ -160,7 +184,9 @@ function Test-SqlConnection {
     param(
         [string]$Instance,
         [PSCredential]$Credential,
-        [string]$Type
+        [string]$Type,
+        [bool]$EncryptConnection = $false,
+        [bool]$TrustServerCertificate = $false
     )
     
     try {
@@ -172,6 +198,16 @@ function Test-SqlConnection {
         
         if ($Credential) {
             $connectionParams.SqlCredential = $Credential
+        }
+        
+        if ($EncryptConnection) {
+            $connectionParams.EncryptConnection = $true
+            Write-Status "Using encrypted connection (TLS/SSL)" "Info"
+        }
+        
+        if ($TrustServerCertificate) {
+            $connectionParams.TrustServerCertificate = $true
+            Write-Status "Trusting server certificate" "Warning"
         }
         
         $connection = Connect-DbaInstance @connectionParams
@@ -191,6 +227,47 @@ function Test-SqlConnection {
         Write-Status "Error connecting to $Type server: $Instance - $($_.Exception.Message)" "Error"
         return $null
     }
+}
+
+# Function to validate encryption settings
+function Test-EncryptionSettings {
+    param(
+        [object]$Connection,
+        [string]$BackupEncryptionAlgorithm,
+        [string]$BackupEncryptionCertificate
+    )
+    
+    $validationResults = @{
+        BackupEncryptionValid = $true
+        ConnectionEncryptionValid = $true
+        Warnings = @()
+    }
+    
+    if ($BackupEncryptionAlgorithm -and -not $BackupEncryptionCertificate) {
+        $validationResults.BackupEncryptionValid = $false
+        $validationResults.Warnings += "BackupEncryptionAlgorithm specified but BackupEncryptionCertificate is missing"
+    }
+    
+    if ($BackupEncryptionCertificate -and -not $BackupEncryptionAlgorithm) {
+        $validationResults.BackupEncryptionValid = $false
+        $validationResults.Warnings += "BackupEncryptionCertificate specified but BackupEncryptionAlgorithm is missing"
+    }
+    
+    if ($BackupEncryptionCertificate -and $Connection) {
+        try {
+            $certQuery = "SELECT name FROM sys.certificates WHERE name = '$BackupEncryptionCertificate'"
+            $certExists = Invoke-DbaQuery -SqlInstance $Connection -Query $certQuery
+            if (-not $certExists) {
+                $validationResults.BackupEncryptionValid = $false
+                $validationResults.Warnings += "Certificate '$BackupEncryptionCertificate' not found in master database"
+            }
+        }
+        catch {
+            $validationResults.Warnings += "Could not validate certificate existence: $($_.Exception.Message)"
+        }
+    }
+    
+    return $validationResults
 }
 
 # Function to check collation compatibility
@@ -288,6 +365,16 @@ function Get-UserDatabases {
             $connectionParams.SqlCredential = $Credential
         }
         
+        if ($EncryptConnection) {
+            $connectionParams.EncryptConnection = $true
+            Write-Status "Using encrypted connection (TLS/SSL)" "Info"
+        }
+        
+        if ($TrustServerCertificate) {
+            $connectionParams.TrustServerCertificate = $true
+            Write-Status "Trusting server certificate" "Warning"
+        }
+        
         # Get all databases
         $allDatabases = Get-DbaDatabase @connectionParams
         
@@ -340,7 +427,9 @@ function Backup-UserDatabases {
         [string]$Instance,
         [PSCredential]$Credential,
         [object[]]$Databases,
-        [string]$BackupPath
+        [string]$BackupPath,
+        [string]$BackupEncryptionAlgorithm,
+        [string]$BackupEncryptionCertificate
     )
     
     $backupResults = @()
@@ -361,6 +450,12 @@ function Backup-UserDatabases {
             
             if ($Credential) {
                 $backupParams.SqlCredential = $Credential
+            }
+            
+            if ($BackupEncryptionAlgorithm -and $BackupEncryptionCertificate) {
+                $backupParams.EncryptionAlgorithm = $BackupEncryptionAlgorithm
+                $backupParams.EncryptionCertificate = $BackupEncryptionCertificate
+                Write-Status "Using backup encryption: $BackupEncryptionAlgorithm with certificate $BackupEncryptionCertificate" "Info"
             }
             
             $backup = Backup-DbaDatabase @backupParams
@@ -582,7 +677,7 @@ $sourceConnection = $null
 $destinationConnection = $null
 
 if (-not $RestoreOnly) {
-    $sourceConnection = Test-SqlConnection -Instance $SourceInstance -Credential $SourceCredential -Type "source"
+    $sourceConnection = Test-SqlConnection -Instance $SourceInstance -Credential $SourceCredential -Type "source" -EncryptConnection $EncryptConnections -TrustServerCertificate $TrustServerCertificate
     if (-not $sourceConnection) {
         Write-Status "Cannot proceed without source server connection" "Error"
         exit 1
@@ -590,10 +685,28 @@ if (-not $RestoreOnly) {
 }
 
 if (-not $BackupOnly) {
-    $destinationConnection = Test-SqlConnection -Instance $DestinationInstance -Credential $DestinationCredential -Type "destination"
+    $destinationConnection = Test-SqlConnection -Instance $DestinationInstance -Credential $DestinationCredential -Type "destination" -EncryptConnection $EncryptConnections -TrustServerCertificate $TrustServerCertificate
     if (-not $destinationConnection) {
         Write-Status "Cannot proceed without destination server connection" "Error"
         exit 1
+    }
+}
+
+# Validate encryption settings
+if ($BackupEncryptionAlgorithm -or $BackupEncryptionCertificate) {
+    Write-Status "Validating backup encryption settings" "Info"
+    $encryptionValidation = Test-EncryptionSettings -Connection $sourceConnection -BackupEncryptionAlgorithm $BackupEncryptionAlgorithm -BackupEncryptionCertificate $BackupEncryptionCertificate
+    
+    if (-not $encryptionValidation.BackupEncryptionValid) {
+        foreach ($warning in $encryptionValidation.Warnings) {
+            Write-Status $warning "Error"
+        }
+        Write-Status "Cannot proceed with invalid backup encryption settings" "Error"
+        exit 1
+    }
+    
+    foreach ($warning in $encryptionValidation.Warnings) {
+        Write-Status $warning "Warning"
     }
 }
 
@@ -613,7 +726,7 @@ if (-not $RestoreOnly) {
     
     # Backup databases
     Write-Status "Starting database backup process" "Info"
-    $backupResults = Backup-UserDatabases -Instance $SourceInstance -Credential $SourceCredential -Databases $databasesToExport -BackupPath $ExportPath
+    $backupResults = Backup-UserDatabases -Instance $SourceInstance -Credential $SourceCredential -Databases $databasesToExport -BackupPath $ExportPath -BackupEncryptionAlgorithm $BackupEncryptionAlgorithm -BackupEncryptionCertificate $BackupEncryptionCertificate
     
     # Display backup summary
     $successfulBackups = $backupResults | Where-Object { $_.Success }

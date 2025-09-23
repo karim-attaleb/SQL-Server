@@ -64,5 +64,51 @@ All notable changes to the SQL Server Instance Upgrade Tool will be documented i
 - Network access to source and destination SQL Server instances
 - Appropriate SQL Server permissions (sysadmin recommended)
 
+## [1.1.0] - 2024-09-23
+
+### Added
+- **Encryption Support**: Comprehensive encryption capabilities for both at-rest and in-flight data protection
+- **Connection Encryption**: TLS/SSL encryption for SQL Server connections using `-EncryptConnections` parameter
+- **Backup Encryption**: Certificate-based backup file encryption with support for AES128, AES192, AES256, and TRIPLEDES algorithms
+- **Certificate Validation**: Automatic validation of backup encryption certificates in master database
+- **Encryption Parameter Validation**: Comprehensive validation of encryption settings before operations begin
+- **Security Documentation**: Detailed encryption setup guides and best practices
+- **Enhanced Examples**: New usage examples demonstrating various encryption scenarios
+
+### Features
+- **Connection Security**:
+  - `-EncryptConnections` switch for TLS/SSL encrypted SQL Server connections
+  - `-TrustServerCertificate` switch for certificate trust management (use with caution)
+  - Automatic encryption status reporting during connection testing
+
+- **Backup Security**:
+  - `-BackupEncryptionAlgorithm` parameter with validation for AES128, AES192, AES256, TRIPLEDES
+  - `-BackupEncryptionCertificate` parameter for certificate-based encryption
+  - Certificate existence validation before backup operations
+  - Encryption status reporting during backup processes
+
+- **Enhanced Validation**:
+  - New `Test-EncryptionSettings` function for comprehensive encryption validation
+  - Certificate existence checking in master database
+  - Parameter dependency validation (algorithm requires certificate and vice versa)
+  - Detailed error messages for encryption configuration issues
+
+### Documentation Updates
+- **README.md**: Added encryption features overview and usage examples
+- **API_REFERENCE.md**: Complete documentation of new encryption parameters
+- **DEPLOYMENT_GUIDE.md**: Encryption setup scenarios and certificate management
+- **Usage-Examples.ps1**: Six new examples demonstrating encryption capabilities
+
+### Security Enhancements
+- Certificate-based backup encryption for data at rest protection
+- TLS/SSL connection encryption for data in transit protection
+- Comprehensive encryption validation and error handling
+- Security best practices documentation for production deployments
+
+### Backward Compatibility
+- All encryption parameters are optional, maintaining full backward compatibility
+- Existing scripts continue to work without modification
+- No changes to default behavior when encryption parameters are not specified
+
 ### Created By
 - **Developer**: @karim-attaleb

@@ -273,6 +273,81 @@ Please check the log file for detailed error information.
 '@
 Write-Host $example11 -ForegroundColor Green
 
+# =============================================================================
+# ENCRYPTION EXAMPLES
+# =============================================================================
+
+# Example 15: Migration with Connection Encryption Only
+Write-Host "Example 15: Migration with Connection Encryption" -ForegroundColor Green
+.\scripts\Export-SqlServerInstance.ps1 `
+    -SourceInstance "PROD-SQL01" `
+    -DestinationInstance "SQL2022-01" `
+    -ExportPath "D:\Migration" `
+    -EncryptConnections `
+    -DatabaseNames @("CriticalDB", "SensitiveDB") `
+    -IncludeLogins
+
+# Example 16: Migration with Backup Encryption Only
+Write-Host "Example 16: Migration with Backup Encryption" -ForegroundColor Green
+.\scripts\Export-SqlServerInstance.ps1 `
+    -SourceInstance "PROD-SQL01" `
+    -DestinationInstance "SQL2022-01" `
+    -ExportPath "D:\SecureBackups" `
+    -BackupEncryptionAlgorithm "AES256" `
+    -BackupEncryptionCertificate "BackupCert" `
+    -IncludeAllUserDatabases
+
+# Example 17: Maximum Security Migration (Both Encryptions)
+Write-Host "Example 17: Maximum Security Migration" -ForegroundColor Green
+.\scripts\Export-SqlServerInstance.ps1 `
+    -SourceInstance "PROD-SQL01" `
+    -DestinationInstance "SQL2022-01" `
+    -ExportPath "D:\SecureMigration" `
+    -EncryptConnections `
+    -TrustServerCertificate `
+    -BackupEncryptionAlgorithm "AES256" `
+    -BackupEncryptionCertificate "BackupCert" `
+    -IncludeAllUserDatabases `
+    -IncludeLogins `
+    -IncludeJobs `
+    -LogPath "D:\SecureMigration\Logs\MaxSecurity.log"
+
+# Example 18: Backup-Only with Encryption for Compliance
+Write-Host "Example 18: Encrypted Backup-Only for Compliance" -ForegroundColor Green
+.\scripts\Export-SqlServerInstance.ps1 `
+    -SourceInstance "COMPLIANCE-SQL" `
+    -DestinationInstance "dummy" `
+    -ExportPath "\\SecureStorage\ComplianceBackups" `
+    -BackupOnly `
+    -EncryptConnections `
+    -BackupEncryptionAlgorithm "AES256" `
+    -BackupEncryptionCertificate "ComplianceCert" `
+    -ExcludeDatabases @("TempDB", "TestDB")
+
+# Example 19: Development Environment with Trusted Certificates
+Write-Host "Example 19: Development Migration with Trusted Certificates" -ForegroundColor Green
+.\scripts\Export-SqlServerInstance.ps1 `
+    -SourceInstance "DEV-SQL01" `
+    -DestinationInstance "DEV-SQL2022" `
+    -ExportPath "D:\DevMigration" `
+    -EncryptConnections `
+    -TrustServerCertificate `
+    -DatabaseNames @("DevApp", "DevReports") `
+    -OverwriteExisting
+
+# Example 20: Selective Encryption Based on Data Sensitivity
+Write-Host "Example 20: Selective Encryption for Sensitive Databases" -ForegroundColor Green
+.\scripts\Export-SqlServerInstance.ps1 `
+    -SourceInstance "MIXED-SQL01" `
+    -DestinationInstance "SQL2022-01" `
+    -ExportPath "D:\SelectiveMigration" `
+    -DatabaseNames @("CustomerData", "FinancialRecords", "PersonalInfo") `
+    -EncryptConnections `
+    -BackupEncryptionAlgorithm "AES256" `
+    -BackupEncryptionCertificate "SensitiveDataCert" `
+    -IncludeLogins `
+    -LogPath "D:\SelectiveMigration\Logs\SensitiveData.log"
+
 Write-Host "`n" -NoNewline
 Write-Host "All examples displayed. Copy and modify as needed for your specific requirements." -ForegroundColor Cyan
 Write-Host "Remember to test in a non-production environment first!" -ForegroundColor Yellow

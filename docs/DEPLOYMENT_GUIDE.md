@@ -125,7 +125,114 @@ cd C:\SQLExportTool\
     -OverwriteExisting
 ```
 
+### Scenario 5: Encrypted Migration with Maximum Security
+```powershell
+# Create backup encryption certificate first (run on source server)
+# CREATE CERTIFICATE BackupCert
+# WITH SUBJECT = 'Database Backup Encryption Certificate';
+
+# Encrypted migration with both connection and backup encryption
+.\Export-SqlServerInstance.ps1 `
+    -SourceInstance "PROD-SQL01" `
+    -DestinationInstance "SQL2022-01" `
+    -ExportPath "D:\SecureMigration" `
+    -EncryptConnections `
+    -BackupEncryptionAlgorithm "AES256" `
+    -BackupEncryptionCertificate "BackupCert" `
+    -IncludeLogins `
+    -IncludeJobs `
+    -LogPath "D:\SecureMigration\Logs\Encrypted_Migration.log"
+```
+
+### Scenario 6: Compliance Migration with Encrypted Backups
+```powershell
+# Backup-only with encryption for compliance requirements
+.\Export-SqlServerInstance.ps1 `
+    -SourceInstance "COMPLIANCE-SQL" `
+    -DestinationInstance "dummy" `
+    -ExportPath "\\SecureStorage\ComplianceBackups" `
+    -BackupOnly `
+    -EncryptConnections `
+    -BackupEncryptionAlgorithm "AES256" `
+    -BackupEncryptionCertificate "ComplianceCert" `
+    -ExcludeDatabases @("TempDB", "TestDB") `
+    -LogPath "\\SecureStorage\ComplianceBackups\Logs\Compliance.log"
+```
+
 ## Security Considerations
+
+### Authentication
+- Use Windows Authentication when possible for better security
+- Store SQL Server credentials securely if SQL Authentication is required
+- Consider using service accounts with minimal required permissions
+
+### Network Security
+- Ensure network connectivity between source and destination servers
+- Consider firewall rules for SQL Server ports (default 1433)
+- Use VPN or private networks for sensitive data migrations
+- Enable connection encryption for sensitive data transfers
+
+### Backup File Security
+- Secure backup file locations with appropriate NTFS permissions
+- Use backup encryption for sensitive data protection
+- Implement backup file retention policies
+- Monitor backup file access and modifications
+
+## Encryption Setup and Best Practices
+
+### Certificate Management for Backup Encryption
+
+#### Creating Backup Encryption Certificates
+```sql
+-- Run on source SQL Server instance
+USE master;
+GO
+
+-- Create a master key if it doesn't exist
+CREATE MASTER KEY ENCRYPTION BY PASSWORD = 'StrongPassword123!';
+GO
+
+-- Create backup encryption certificate
+CREATE CERTIFICATE BackupCert
+WITH SUBJECT = 'Database Backup Encryption Certificate',
+EXPIRY_DATE = '2025-12-31';
+GO
+
+-- Backup the certificate and private key for disaster recovery
+BACKUP CERTIFICATE BackupCert
+TO FILE = 'C:\Certificates\BackupCert.cer'
+WITH PRIVATE KEY (
+    FILE = 'C:\Certificates\BackupCert.pvk',
+    ENCRYPTION BY PASSWORD = 'CertificatePassword123!'
+);
+GO
+```
+
+#### Certificate Security Best Practices
+- **Secure Storage**: Store certificate files in secure locations with restricted access
+- **Password Protection**: Use strong passwords for certificate private keys
+- **Backup Strategy**: Include certificates in disaster recovery procedures
+- **Expiration Monitoring**: Monitor certificate expiration dates and renew before expiry
+- **Access Control**: Limit certificate access to authorized personnel only
+
+### Connection Encryption Best Practices
+
+#### Production Environment Setup
+- **SSL Certificates**: Use properly signed SSL certificates in production
+- **Certificate Validation**: Avoid TrustServerCertificate in production environments
+- **Network Isolation**: Use private networks for database migrations
+- **Monitoring**: Monitor encrypted connections for performance impact
+
+#### Development and Testing
+- **Self-Signed Certificates**: Acceptable for development environments
+- **TrustServerCertificate**: Can be used with caution in test environments
+- **Performance Testing**: Test encryption impact on migration performance
+
+### Compliance Considerations
+- **Data Classification**: Identify sensitive data requiring encryption
+- **Regulatory Requirements**: Ensure encryption meets compliance standards
+- **Audit Trails**: Maintain detailed logs of encrypted operations
+- **Key Management**: Implement proper encryption key lifecycle management
 
 ### Authentication Methods
 

@@ -132,6 +132,35 @@ Complete parameter reference for the Export-SqlServerInstance.ps1 script.
 - **Usage**: `-IgnoreCollationWarnings`
 - **Note**: Collation differences can cause issues with string comparisons and temporary tables
 
+### Encryption Parameters
+
+#### `-EncryptConnections` (Switch)
+- **Description**: Enable TLS/SSL encryption for SQL Server connections (in-flight encryption)
+- **Required**: No
+- **Default**: `$false`
+- **Usage**: `-EncryptConnections`
+- **Note**: Ensures all data transmitted between the script and SQL Server instances is encrypted
+
+#### `-TrustServerCertificate` (Switch)
+- **Description**: Trust server certificates when using encrypted connections
+- **Required**: No
+- **Default**: `$false`
+- **Usage**: `-TrustServerCertificate`
+- **Warning**: Use with caution in production environments; validates certificate trust
+
+#### `-BackupEncryptionAlgorithm` (String)
+- **Description**: Encryption algorithm for backup files (at-rest encryption)
+- **Required**: No (required if BackupEncryptionCertificate is specified)
+- **Accepted Values**: `AES128`, `AES192`, `AES256`, `TRIPLEDES`
+- **Usage**: `-BackupEncryptionAlgorithm "AES256"`
+- **Recommendation**: Use AES256 for maximum security
+
+#### `-BackupEncryptionCertificate` (String)
+- **Description**: Certificate name in master database for backup encryption
+- **Required**: No (required if BackupEncryptionAlgorithm is specified)
+- **Usage**: `-BackupEncryptionCertificate "BackupCert"`
+- **Note**: Certificate must exist in the master database before backup operations
+
 ### Logging Parameters
 
 #### `-LogPath` (String)
@@ -211,6 +240,35 @@ Complete parameter reference for the Export-SqlServerInstance.ps1 script.
     -IgnoreCollationWarnings
 ```
 
+#### 7. Encrypted Migration with Connection and Backup Encryption
+```powershell
+.\Export-SqlServerInstance.ps1 `
+    -SourceInstance "PROD-SQL01" `
+    -DestinationInstance "SQL2022-01" `
+    -ExportPath "D:\SecureMigration" `
+    -EncryptConnections `
+    -BackupEncryptionAlgorithm "AES256" `
+    -BackupEncryptionCertificate "BackupCert" `
+    -IncludeLogins `
+    -IncludeJobs
+```
+
+#### 8. Maximum Security Migration
+```powershell
+.\Export-SqlServerInstance.ps1 `
+    -SourceInstance "PROD-SQL01" `
+    -DestinationInstance "SQL2022-01" `
+    -ExportPath "D:\SecureMigration" `
+    -EncryptConnections `
+    -TrustServerCertificate `
+    -BackupEncryptionAlgorithm "AES256" `
+    -BackupEncryptionCertificate "BackupCert" `
+    -IncludeAllUserDatabases `
+    -IncludeLogins `
+    -IncludeJobs `
+    -LogPath "D:\SecureMigration\Logs\MaxSecurity.log"
+```
+
 ## Parameter Validation Rules
 
 ### Mutually Exclusive Parameters
@@ -254,3 +312,12 @@ The script includes comprehensive error handling:
 - **File Permissions**: Secure backup file locations with appropriate permissions
 - **Network Security**: Ensure secure connections between SQL Server instances
 - **Audit Logging**: Enable detailed logging for compliance requirements
+
+### Encryption Security
+
+- **Certificate Management**: Create and manage backup encryption certificates properly
+- **Certificate Storage**: Secure certificate storage with appropriate permissions
+- **Certificate Backup**: Backup certificates and private keys for disaster recovery
+- **Connection Encryption**: Use TrustServerCertificate cautiously in production
+- **Performance Impact**: Consider encryption overhead for large migrations
+- **Compliance**: Ensure encryption meets organizational security requirements
