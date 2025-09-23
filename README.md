@@ -128,7 +128,7 @@ sql-server-instance-upgrade/
 
 ## 🤝 Contributing
 
-This tool was created by Devin AI for @karim-attaleb. Feel free to submit issues or enhancement requests.
+This tool was created for @karim-attaleb. Feel free to submit issues or enhancement requests.
 
 ## 📄 License
 
@@ -136,12 +136,10 @@ This tool is provided as-is for educational and operational purposes. Please ens
 
 ## 🔗 Links
 
-- **Devin Run**: https://app.devin.ai/sessions/d4ab69bc53f642f78f30c8c75e410808
 - **dbatools Documentation**: [dbatools.io](https://dbatools.io)
 - **SQL Server 2022 Documentation**: [Microsoft Docs](https://docs.microsoft.com/sql/sql-server/)
 
 ---
 
-**Created by**: Devin AI  
-**Requested by**: @karim-attaleb  
+**Created by**: @karim-attaleb  
 **Repository**: https://github.com/karim-attaleb/sql-server-instance-upgrade

@@ -65,6 +65,4 @@ All notable changes to the SQL Server Instance Upgrade Tool will be documented i
 - Appropriate SQL Server permissions (sysadmin recommended)
 
 ### Created By
-- **Developer**: Devin AI
-- **Requested By**: @karim-attaleb
-- **Devin Session**: https://app.devin.ai/sessions/d4ab69bc53f642f78f30c8c75e410808
+- **Developer**: @karim-attaleb
