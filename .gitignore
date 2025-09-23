@@ -1,0 +1,46 @@
+# PowerShell
+*.ps1xml
+*.psd1
+*.psm1
+
+# Logs
+*.log
+logs/
+Logs/
+
+# Backup files
+*.bak
+*.trn
+backups/
+Backups/
+
+# Temporary files
+temp/
+tmp/
+*.tmp
+
+# IDE files
+.vscode/
+.vs/
+*.suo
+*.user
+
+# OS files
+Thumbs.db
+.DS_Store
+desktop.ini
+
+# Test results
+TestResults/
+*.trx
+
+# Credentials (never commit these)
+*credential*
+*password*
+*secret*
+*.pfx
+*.p12
+
+# Local configuration
+config.local.*
+settings.local.*
