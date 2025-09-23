@@ -255,8 +255,7 @@ function Test-EncryptionSettings {
     
     if ($BackupEncryptionCertificate -and $Connection) {
         try {
-            $certQuery = "SELECT name FROM sys.certificates WHERE name = '$BackupEncryptionCertificate'"
-            $certExists = Invoke-DbaQuery -SqlInstance $Connection -Query $certQuery
+            $certExists = Get-DbaCertificate -SqlInstance $Connection -Certificate $BackupEncryptionCertificate
             if (-not $certExists) {
                 $validationResults.BackupEncryptionValid = $false
                 $validationResults.Warnings += "Certificate '$BackupEncryptionCertificate' not found in master database"
