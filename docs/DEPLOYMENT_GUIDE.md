@@ -178,6 +178,12 @@ cd C:\SQLExportTool\
 - Implement backup file retention policies
 - Monitor backup file access and modifications
 
+### Event Log Security
+- Event Log source creation requires administrative privileges
+- Event Log entries are visible to users with Event Log read permissions
+- Consider using custom event sources for better log organization
+- Monitor Event Log entries for security and compliance requirements
+
 ## Encryption Setup and Best Practices
 
 ### Certificate Management for Backup Encryption
@@ -233,6 +239,47 @@ GO
 - **Regulatory Requirements**: Ensure encryption meets compliance standards
 - **Audit Trails**: Maintain detailed logs of encrypted operations
 - **Key Management**: Implement proper encryption key lifecycle management
+
+## Event Log Configuration and Monitoring
+
+### Event Log Setup
+```powershell
+# Enable Event Log with default source
+.\Export-SqlServerInstance.ps1 `
+    -SourceInstance "PROD-SQL01" `
+    -DestinationInstance "SQL2022-01" `
+    -ExportPath "D:\Migration" `
+    -EnableEventLogging
+
+# Enable Event Log with custom source (requires admin privileges)
+.\Export-SqlServerInstance.ps1 `
+    -SourceInstance "PROD-SQL01" `
+    -DestinationInstance "SQL2022-01" `
+    -ExportPath "D:\Migration" `
+    -EnableEventLogging `
+    -EventLogSource "MyMigrationTool"
+```
+
+### Event Log Categories and IDs
+- **Information Events (ID 1000)**: General information messages
+- **Success Events (ID 1001)**: Successful operations
+- **Warning Events (ID 2001)**: Non-critical warnings
+- **Error Events (ID 3001)**: Error conditions
+
+### Event Log Monitoring
+```powershell
+# View migration events in PowerShell
+Get-WinEvent -FilterHashtable @{LogName='Application'; ProviderName='SQLServerMigrationTool'}
+
+# Filter by event level
+Get-WinEvent -FilterHashtable @{LogName='Application'; ProviderName='SQLServerMigrationTool'; Level=2} # Errors only
+```
+
+### Event Log Best Practices
+- **Source Registration**: Run initial setup with administrative privileges to register custom event sources
+- **Log Retention**: Configure appropriate Event Log retention policies
+- **Monitoring**: Set up monitoring alerts for error events (ID 3001)
+- **Cleanup**: Regularly review and archive old Event Log entries
 
 ### Authentication Methods
 

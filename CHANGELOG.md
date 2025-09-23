@@ -67,48 +67,48 @@ All notable changes to the SQL Server Instance Upgrade Tool will be documented i
 ## [1.1.0] - 2024-09-23
 
 ### Added
-- **Encryption Support**: Comprehensive encryption capabilities for both at-rest and in-flight data protection
-- **Connection Encryption**: TLS/SSL encryption for SQL Server connections using `-EncryptConnections` parameter
-- **Backup Encryption**: Certificate-based backup file encryption with support for AES128, AES192, AES256, and TRIPLEDES algorithms
-- **Certificate Validation**: Automatic validation of backup encryption certificates in master database
-- **Encryption Parameter Validation**: Comprehensive validation of encryption settings before operations begin
-- **Security Documentation**: Detailed encryption setup guides and best practices
-- **Enhanced Examples**: New usage examples demonstrating various encryption scenarios
-
-### Features
-- **Connection Security**:
-  - `-EncryptConnections` switch for TLS/SSL encrypted SQL Server connections
-  - `-TrustServerCertificate` switch for certificate trust management (use with caution)
+- **Comprehensive Encryption Support**: Added both at-rest and in-flight encryption capabilities
+- **Connection Encryption (In-Flight)**:
+  - `EncryptConnections` parameter for TLS/SSL encrypted SQL Server connections
+  - `TrustServerCertificate` parameter for certificate trust management
   - Automatic encryption status reporting during connection testing
-
-- **Backup Security**:
-  - `-BackupEncryptionAlgorithm` parameter with validation for AES128, AES192, AES256, TRIPLEDES
-  - `-BackupEncryptionCertificate` parameter for certificate-based encryption
+- **Backup Encryption (At-Rest)**:
+  - `BackupEncryptionAlgorithm` parameter supporting AES128, AES192, AES256, TRIPLEDES
+  - `BackupEncryptionCertificate` parameter for certificate-based encryption
   - Certificate existence validation before backup operations
   - Encryption status reporting during backup processes
-
+- **Windows Event Log Integration**:
+  - `EnableEventLogging` parameter for Windows Event Log support
+  - `EventLogSource` parameter for custom event log source names
+  - Automatic event categorization (Info=1000, Success=1001, Warning=2001, Error=3001)
+  - Graceful fallback handling for event source registration
 - **Enhanced Validation**:
   - New `Test-EncryptionSettings` function for comprehensive encryption validation
   - Certificate existence checking in master database
   - Parameter dependency validation (algorithm requires certificate and vice versa)
   - Detailed error messages for encryption configuration issues
+- **Documentation Updates**:
+  - Updated README.md with encryption and Event Log features
+  - Enhanced API_REFERENCE.md with all new parameter documentation
+  - Added Event Log setup and monitoring to DEPLOYMENT_GUIDE.md
+  - New Event Log usage examples in Usage-Examples.ps1
 
-### Documentation Updates
-- **README.md**: Added encryption features overview and usage examples
-- **API_REFERENCE.md**: Complete documentation of new encryption parameters
-- **DEPLOYMENT_GUIDE.md**: Encryption setup scenarios and certificate management
-- **Usage-Examples.ps1**: Six new examples demonstrating encryption capabilities
+### Changed
+- Enhanced `Write-Status` function to support file logging and Windows Event Log
+- Enhanced `Test-SqlConnection` function to support encrypted connections
+- Updated `Backup-UserDatabases` function to support backup encryption
+- Improved error handling and validation throughout the script
 
-### Security Enhancements
-- Certificate-based backup encryption for data at rest protection
-- TLS/SSL connection encryption for data in transit protection
-- Comprehensive encryption validation and error handling
-- Security best practices documentation for production deployments
+### Security
+- Added certificate-based backup encryption for data at rest protection
+- Implemented TLS/SSL connection encryption for data in transit protection
+- Enhanced security validation and error handling
+- Event Log integration for improved audit trails
 
 ### Backward Compatibility
-- All encryption parameters are optional, maintaining full backward compatibility
+- All new parameters are optional, maintaining full backward compatibility
 - Existing scripts continue to work without modification
-- No changes to default behavior when encryption parameters are not specified
+- No changes to default behavior when new parameters are not specified
 
 ### Created By
 - **Developer**: @karim-attaleb

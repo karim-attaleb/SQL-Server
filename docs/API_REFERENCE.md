@@ -170,6 +170,20 @@ Complete parameter reference for the Export-SqlServerInstance.ps1 script.
   - `"C:\Logs\Migration.log"`
   - `"C:\Logs\Migration_$(Get-Date -Format 'yyyyMMdd_HHmmss').log"`
 
+#### `-EnableEventLogging` (Switch)
+- **Description**: Enable logging to Windows Event Log in addition to console output
+- **Required**: No
+- **Default**: `$false`
+- **Usage**: `-EnableEventLogging`
+- **Notes**: Requires appropriate permissions to create event log sources
+
+#### `-EventLogSource` (String)
+- **Description**: Custom event log source name for Windows Event Log entries
+- **Required**: No
+- **Default**: "SQLServerMigrationTool"
+- **Usage**: `-EventLogSource "MyMigrationTool"`
+- **Notes**: Used when EnableEventLogging is specified
+
 ## Parameter Combinations
 
 ### Common Scenarios

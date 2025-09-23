@@ -182,6 +182,44 @@ Backup-DbaDatabase -SqlInstance "Server" -Database "TestDB" -EncryptionAlgorithm
 # Expected: Complete encrypted migration successful
 ```
 
+#### Scenario 5: Event Log Integration Tests
+```powershell
+# Test Event Log with default source
+.\scripts\Export-SqlServerInstance.ps1 `
+    -SourceInstance "TestSQL01" `
+    -DestinationInstance "TestSQL02" `
+    -ExportPath "C:\TestBackups" `
+    -EnableEventLogging `
+    -DatabaseNames @("TestDB") `
+    -WhatIf
+
+# Expected: Event Log entries created with default source
+
+# Test Event Log with custom source (requires admin)
+.\scripts\Export-SqlServerInstance.ps1 `
+    -SourceInstance "TestSQL01" `
+    -DestinationInstance "TestSQL02" `
+    -ExportPath "C:\TestBackups" `
+    -EnableEventLogging `
+    -EventLogSource "TestMigration" `
+    -DatabaseNames @("TestDB") `
+    -WhatIf
+
+# Expected: Custom event source created and used
+
+# Test combined logging (file + event log)
+.\scripts\Export-SqlServerInstance.ps1 `
+    -SourceInstance "TestSQL01" `
+    -DestinationInstance "TestSQL02" `
+    -ExportPath "C:\TestBackups" `
+    -LogPath "C:\TestBackups\Test.log" `
+    -EnableEventLogging `
+    -DatabaseNames @("TestDB") `
+    -WhatIf
+
+# Expected: Both file and Event Log entries created
+```
+
 ### Test Evidence Collection Requirements
 
 For each test execution, collect:
@@ -189,9 +227,27 @@ For each test execution, collect:
 2. **Complete console output**
 3. **Error messages (if any)**
 4. **Log file contents**
-5. **Before/after database states**
-6. **Backup file verification**
-7. **Performance metrics**
+5. **Event Log entries verification**
+6. **Before/after database states**
+7. **Backup file verification**
+8. **Performance metrics**
+
+### Event Log Verification Commands
+```powershell
+# View all migration events
+Get-WinEvent -FilterHashtable @{LogName='Application'; ProviderName='SQLServerMigrationTool'}
+
+# View events by level
+Get-WinEvent -FilterHashtable @{LogName='Application'; ProviderName='SQLServerMigrationTool'; Level=1} # Errors
+Get-WinEvent -FilterHashtable @{LogName='Application'; ProviderName='SQLServerMigrationTool'; Level=2} # Warnings
+Get-WinEvent -FilterHashtable @{LogName='Application'; ProviderName='SQLServerMigrationTool'; Level=4} # Information
+
+# View events by Event ID
+Get-WinEvent -FilterHashtable @{LogName='Application'; ProviderName='SQLServerMigrationTool'; ID=3001} # Errors
+Get-WinEvent -FilterHashtable @{LogName='Application'; ProviderName='SQLServerMigrationTool'; ID=2001} # Warnings
+Get-WinEvent -FilterHashtable @{LogName='Application'; ProviderName='SQLServerMigrationTool'; ID=1001} # Success
+Get-WinEvent -FilterHashtable @{LogName='Application'; ProviderName='SQLServerMigrationTool'; ID=1000} # Info
+```
 
 ### Automated Test Runner Script
 ```powershell
@@ -259,6 +315,54 @@ try {
     $testResults += [PSCustomObject]@{Test="Connection-Encryption"; Result="PASS"; Expected="PASS"; Status="PASS"}
 } catch {
     $testResults += [PSCustomObject]@{Test="Connection-Encryption"; Result="FAIL"; Expected="PASS"; Status="FAIL"}
+}
+
+# Test 5: Event Log functionality
+Write-Host "Test 5: Event Log Integration" -ForegroundColor Yellow
+try {
+    .\scripts\Export-SqlServerInstance.ps1 `
+        -SourceInstance $SourceInstance `
+        -DestinationInstance $DestinationInstance `
+        -ExportPath $TestPath `
+        -EnableEventLogging `
+        -DatabaseNames @("master") `
+        -WhatIf -ErrorAction Stop
+    
+    # Verify Event Log entries were created
+    $eventLogEntries = Get-WinEvent -FilterHashtable @{LogName='Application'; ProviderName='SQLServerMigrationTool'} -MaxEvents 10 -ErrorAction SilentlyContinue
+    if ($eventLogEntries.Count -gt 0) {
+        $testResults += [PSCustomObject]@{Test="Event-Log-Integration"; Result="PASS"; Expected="PASS"; Status="PASS"}
+    } else {
+        $testResults += [PSCustomObject]@{Test="Event-Log-Integration"; Result="FAIL"; Expected="PASS"; Status="FAIL"}
+    }
+} catch {
+    $testResults += [PSCustomObject]@{Test="Event-Log-Integration"; Result="FAIL"; Expected="PASS"; Status="FAIL"}
+}
+
+# Test 6: Combined logging (file + event log)
+Write-Host "Test 6: Combined Logging" -ForegroundColor Yellow
+try {
+    $combinedLogPath = "$TestPath\CombinedTest.log"
+    .\scripts\Export-SqlServerInstance.ps1 `
+        -SourceInstance $SourceInstance `
+        -DestinationInstance $DestinationInstance `
+        -ExportPath $TestPath `
+        -LogPath $combinedLogPath `
+        -EnableEventLogging `
+        -DatabaseNames @("master") `
+        -WhatIf -ErrorAction Stop
+    
+    # Verify both file and Event Log entries exist
+    $fileExists = Test-Path $combinedLogPath
+    $eventLogEntries = Get-WinEvent -FilterHashtable @{LogName='Application'; ProviderName='SQLServerMigrationTool'} -MaxEvents 5 -ErrorAction SilentlyContinue
+    
+    if ($fileExists -and $eventLogEntries.Count -gt 0) {
+        $testResults += [PSCustomObject]@{Test="Combined-Logging"; Result="PASS"; Expected="PASS"; Status="PASS"}
+    } else {
+        $testResults += [PSCustomObject]@{Test="Combined-Logging"; Result="FAIL"; Expected="PASS"; Status="FAIL"}
+    }
+} catch {
+    $testResults += [PSCustomObject]@{Test="Combined-Logging"; Result="FAIL"; Expected="PASS"; Status="FAIL"}
 }
 
 # Generate test report

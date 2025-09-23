@@ -348,6 +348,51 @@ Write-Host "Example 20: Selective Encryption for Sensitive Databases" -Foregroun
     -IncludeLogins `
     -LogPath "D:\SelectiveMigration\Logs\SensitiveData.log"
 
+# =============================================================================
+# EVENT LOG EXAMPLES
+# =============================================================================
+
+# Example 21: Migration with Windows Event Log (Default Source)
+Write-Host "Example 21: Migration with Windows Event Log" -ForegroundColor Green
+.\scripts\Export-SqlServerInstance.ps1 `
+    -SourceInstance "PROD-SQL01" `
+    -DestinationInstance "SQL2022-01" `
+    -ExportPath "D:\Migration" `
+    -EnableEventLogging `
+    -DatabaseNames @("AppDB", "ReportsDB") `
+    -IncludeLogins
+
+# Example 22: Migration with Custom Event Log Source
+Write-Host "Example 22: Migration with Custom Event Log Source" -ForegroundColor Green
+.\scripts\Export-SqlServerInstance.ps1 `
+    -SourceInstance "PROD-SQL01" `
+    -DestinationInstance "SQL2022-01" `
+    -ExportPath "D:\Migration" `
+    -EnableEventLogging `
+    -EventLogSource "MyCompanyMigration" `
+    -IncludeAllUserDatabases `
+    -IncludeJobs
+
+# Example 23: Complete Logging Solution (File + Event Log + Console)
+Write-Host "Example 23: Complete Logging Solution" -ForegroundColor Green
+.\scripts\Export-SqlServerInstance.ps1 `
+    -SourceInstance "PROD-SQL01" `
+    -DestinationInstance "SQL2022-01" `
+    -ExportPath "D:\CompleteMigration" `
+    -LogPath "D:\CompleteMigration\Logs\Migration.log" `
+    -EnableEventLogging `
+    -EventLogSource "EnterpriseMigration" `
+    -EncryptConnections `
+    -BackupEncryptionAlgorithm "AES256" `
+    -BackupEncryptionCertificate "BackupCert" `
+    -IncludeAllUserDatabases `
+    -IncludeLogins `
+    -IncludeJobs
+
 Write-Host "`n" -NoNewline
 Write-Host "All examples displayed. Copy and modify as needed for your specific requirements." -ForegroundColor Cyan
 Write-Host "Remember to test in a non-production environment first!" -ForegroundColor Yellow
+Write-Host "`nEvent Log Notes:" -ForegroundColor Yellow
+Write-Host "- Custom event sources require administrative privileges to create" -ForegroundColor Yellow
+Write-Host "- View events in Event Viewer under Windows Logs > Application" -ForegroundColor Yellow
+Write-Host "- Use Get-WinEvent PowerShell cmdlet for programmatic access" -ForegroundColor Yellow

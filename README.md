@@ -10,6 +10,7 @@ A comprehensive PowerShell solution for migrating SQL Server instances to SQL Se
 - **Encryption Support**: Both at-rest (backup files) and in-flight (SQL connections) encryption
 - **Backup Encryption**: AES128, AES192, AES256, and TRIPLEDES algorithms with certificate-based encryption
 - **Connection Encryption**: TLS/SSL encryption for SQL Server connections with certificate validation
+- **Advanced Logging Options**: Console output, file logging, and Windows Event Log integration
 - **Flexible Operation Modes**: Backup-only, restore-only, or full migration
 - **Additional Components**: Optional export of logins, SQL Agent jobs, linked servers
 - **Robust Error Handling**: Comprehensive logging and error reporting
@@ -74,6 +75,8 @@ sql-server-instance-upgrade/
 | `TrustServerCertificate` | Switch | `$false` | Trust server certificates (use with caution) |
 | `BackupEncryptionAlgorithm` | String | None | Encryption algorithm for backup files |
 | `BackupEncryptionCertificate` | String | None | Certificate name for backup encryption |
+| `EnableEventLogging` | Switch | `$false` | Enable Windows Event Log integration |
+| `EventLogSource` | String | "SQLServerMigrationTool" | Custom event log source name |
 | `IncludeLogins` | Switch | `$false` | Export SQL Server logins |
 | `IncludeJobs` | Switch | `$false` | Export SQL Agent jobs |
 | `OverwriteExisting` | Switch | `$false` | Overwrite existing databases |
@@ -145,7 +148,7 @@ sql-server-instance-upgrade/
     -IncludeLogins
 ```
 
-### Maximum Security Migration
+### Maximum Security Migration with Event Log
 ```powershell
 .\scripts\Export-SqlServerInstance.ps1 `
     -SourceInstance "PROD-SQL01" `
@@ -155,6 +158,8 @@ sql-server-instance-upgrade/
     -TrustServerCertificate `
     -BackupEncryptionAlgorithm "AES256" `
     -BackupEncryptionCertificate "BackupCert" `
+    -EnableEventLogging `
+    -EventLogSource "ProdMigration" `
     -IncludeAllUserDatabases `
     -IncludeLogins `
     -IncludeJobs
