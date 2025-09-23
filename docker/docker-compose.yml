@@ -1,0 +1,60 @@
+
+services:
+  sqlserver-source:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.sqlserver
+    container_name: sql-source
+    environment:
+      - ACCEPT_EULA=Y
+      - SA_PASSWORD=TestPassword123!
+      - MSSQL_PID=Developer
+    ports:
+      - "1433:1433"
+    volumes:
+      - source-data:/var/opt/mssql
+    networks:
+      - sql-network
+
+  sqlserver-destination:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.sqlserver
+    container_name: sql-destination
+    environment:
+      - ACCEPT_EULA=Y
+      - SA_PASSWORD=TestPassword123!
+      - MSSQL_PID=Developer
+    ports:
+      - "1434:1433"
+    volumes:
+      - dest-data:/var/opt/mssql
+    networks:
+      - sql-network
+
+  powershell-test:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.powershell
+    container_name: powershell-test
+    depends_on:
+      - sqlserver-source
+      - sqlserver-destination
+    volumes:
+      - ../scripts:/Scripts
+      - ../docs:/Scripts/docs
+      - ../examples:/Scripts/examples
+      - test-backups:/Scripts/Backups
+    networks:
+      - sql-network
+    stdin_open: true
+    tty: true
+
+volumes:
+  source-data:
+  dest-data:
+  test-backups:
+
+networks:
+  sql-network:
+    driver: bridge

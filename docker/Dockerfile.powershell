@@ -1,0 +1,19 @@
+# PowerShell on Linux container for testing our scripts
+FROM mcr.microsoft.com/powershell:7.4-ubuntu-22.04
+
+# Install required modules
+RUN pwsh -Command "Install-Module -Name dbatools -Force -AllowClobber -Scope AllUsers"
+
+# Create working directory
+WORKDIR /Scripts
+
+# Copy our scripts
+COPY scripts/ ./
+COPY docs/ ./docs/
+COPY examples/ ./examples/
+
+# Set PowerShell as default shell
+SHELL ["pwsh", "-Command"]
+
+# Keep container running
+CMD ["pwsh", "-NoExit"]

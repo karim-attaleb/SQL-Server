@@ -1,0 +1,13 @@
+# SQL Server 2022 on Linux for testing
+FROM mcr.microsoft.com/mssql/server:2022-latest
+
+# Set environment variables for SQL Server
+ENV ACCEPT_EULA=Y
+ENV SA_PASSWORD=TestPassword123!
+ENV MSSQL_PID=Developer
+
+# Expose SQL Server port
+EXPOSE 1433
+
+# Start SQL Server
+CMD ["/opt/mssql/bin/sqlservr"]
