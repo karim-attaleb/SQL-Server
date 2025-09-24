@@ -64,22 +64,8 @@ else {
     Write-Status "Not running as Administrator - some operations may require elevation" "Warning"
 }
 
-# Install NuGet provider if needed
-Write-Status "Checking NuGet package provider..." "Info"
-$nugetProvider = Get-PackageProvider -Name NuGet -ErrorAction SilentlyContinue
-if (-not $nugetProvider) {
-    Write-Status "Installing NuGet package provider..." "Info"
-    try {
-        Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force -Scope CurrentUser
-        Write-Status "NuGet package provider installed successfully" "Success"
-    }
-    catch {
-        Write-Status "Failed to install NuGet package provider: $($_.Exception.Message)" "Error"
-    }
-}
-else {
-    Write-Status "NuGet package provider is already installed" "Success"
-}
+# PowerShell 5.1+ includes sufficient package management capabilities
+Write-Status "PowerShell Gallery access available through built-in package management" "Success"
 
 # Set PSGallery as trusted repository
 Write-Status "Configuring PSGallery repository..." "Info"

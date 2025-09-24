@@ -1,31 +1,31 @@
 <#
 .SYNOPSIS
-    Robust SQL Server instance export tool using dbatools
-    
+    Exports a SQL Server instance to SQL Server 2022 using modular architecture
+
 .DESCRIPTION
-    This script provides a comprehensive solution to export SQL Server instances to SQL Server 2022.
-    It allows selective export of user databases and excludes system databases by default.
-    
+    This script provides a wrapper for the Export-SqlServerInstance function from the SqlServerMigration module.
+    It maintains backward compatibility while using the new modular architecture.
+
 .PARAMETER SourceInstance
-    Source SQL Server instance to export from
+    Source SQL Server instance name or connection string
     
 .PARAMETER DestinationInstance
-    Destination SQL Server 2022 instance to export to
+    Destination SQL Server instance name or connection string
     
 .PARAMETER SourceCredential
-    Credentials for source SQL Server instance
+    Credentials for source server (optional - uses Windows Authentication if not provided)
     
 .PARAMETER DestinationCredential
-    Credentials for destination SQL Server instance
+    Credentials for destination server (optional - uses Windows Authentication if not provided)
     
 .PARAMETER DatabaseNames
-    Specific database names to export (optional - if not specified, all user databases will be exported)
+    Array of specific database names to export (optional)
     
 .PARAMETER ExcludeDatabases
-    Database names to exclude from export
+    Array of database names to exclude from export
     
 .PARAMETER ExportPath
-    Path where backup files will be stored temporarily
+    Path where backup files will be stored
     
 .PARAMETER IncludeLogins
     Include SQL Server logins in the export
@@ -37,13 +37,13 @@
     Include linked servers in the export
     
 .PARAMETER IncludeServerSettings
-    Include server-level settings and configurations
+    Include server-level settings in the export
     
 .PARAMETER BackupOnly
-    Only create backups without restoring to destination
+    Only perform backup operations (no restore)
     
 .PARAMETER RestoreOnly
-    Only restore from existing backups (requires ExportPath with backup files)
+    Only perform restore operations (no backup)
     
 .PARAMETER OverwriteExisting
     Overwrite existing databases on destination server
@@ -146,737 +146,47 @@ param(
     [string]$EventLogSource = "SQLServerMigrationTool"
 )
 
-# Initialize script-level variables for logging
-$script:LogPath = $LogPath
-$script:EnableEventLogging = $EnableEventLogging
-$script:EventLogSource = $EventLogSource
-
-# Import required modules
+# Import SqlServerMigration module
+$ModulePath = Join-Path $PSScriptRoot "..\modules\SqlServerMigration\SqlServerMigration.psd1"
 try {
-    Import-Module dbatools -Force
-    Write-Host "✓ dbatools module imported successfully" -ForegroundColor Green
+    Import-Module $ModulePath -Force
+    Write-Host "✓ SqlServerMigration module imported successfully" -ForegroundColor Green
 }
 catch {
-    Write-Error "Failed to import dbatools module. Please install it using: Install-Module dbatools -Force"
+    Write-Host "✗ Failed to import SqlServerMigration module: $($_.Exception.Message)" -ForegroundColor Red
+    Write-Host "ℹ Please ensure the module is available at: $ModulePath" -ForegroundColor Cyan
     exit 1
 }
 
-# Initialize logging
-if ($LogPath) {
-    if (!(Test-Path (Split-Path $LogPath -Parent))) {
-        New-Item -ItemType Directory -Path (Split-Path $LogPath -Parent) -Force | Out-Null
-    }
-    Start-Transcript -Path $LogPath -Append
+# Call the Export-SqlServerInstance function from the module with all parameters
+$exportParams = @{
+    SourceInstance = $SourceInstance
+    DestinationInstance = $DestinationInstance
+    ExportPath = $ExportPath
+    ExcludeSystemDatabases = $ExcludeSystemDatabases
+    IncludeAllUserDatabases = $IncludeAllUserDatabases
+    IgnoreCollationWarnings = $IgnoreCollationWarnings
+    EncryptConnections = $EncryptConnections
+    TrustServerCertificate = $TrustServerCertificate
+    BackupOnly = $BackupOnly
+    RestoreOnly = $RestoreOnly
+    OverwriteExisting = $OverwriteExisting
+    IncludeLogins = $IncludeLogins
+    IncludeJobs = $IncludeJobs
+    IncludeLinkedServers = $IncludeLinkedServers
+    IncludeServerSettings = $IncludeServerSettings
+    EnableEventLogging = $EnableEventLogging
+    EventLogSource = $EventLogSource
 }
 
-# Create export directory if it doesn't exist
-if (!(Test-Path $ExportPath)) {
-    try {
-        New-Item -ItemType Directory -Path $ExportPath -Force | Out-Null
-        Write-Host "✓ Created export directory: $ExportPath" -ForegroundColor Green
-    }
-    catch {
-        Write-Error "Failed to create export directory: $ExportPath"
-        exit 1
-    }
-}
+# Add optional parameters if provided
+if ($SourceCredential) { $exportParams.SourceCredential = $SourceCredential }
+if ($DestinationCredential) { $exportParams.DestinationCredential = $DestinationCredential }
+if ($DatabaseNames) { $exportParams.DatabaseNames = $DatabaseNames }
+if ($ExcludeDatabases) { $exportParams.ExcludeDatabases = $ExcludeDatabases }
+if ($BackupEncryptionAlgorithm) { $exportParams.BackupEncryptionAlgorithm = $BackupEncryptionAlgorithm }
+if ($BackupEncryptionCertificate) { $exportParams.BackupEncryptionCertificate = $BackupEncryptionCertificate }
+if ($LogPath) { $exportParams.LogPath = $LogPath }
 
-# Function to write colored output and optionally log to Windows Event Log
-function Write-Status {
-    param(
-        [string]$Message,
-        [string]$Status = "Info"
-    )
-    
-    # Console output with colors
-    switch ($Status) {
-        "Success" { Write-Host "✓ $Message" -ForegroundColor Green }
-        "Warning" { Write-Host "⚠ $Message" -ForegroundColor Yellow }
-        "Error" { Write-Host "✗ $Message" -ForegroundColor Red }
-        "Info" { Write-Host "ℹ $Message" -ForegroundColor Cyan }
-        default { Write-Host $Message }
-    }
-    
-    # File logging if LogPath is specified
-    if ($script:LogPath -and (Test-Path (Split-Path $script:LogPath -Parent))) {
-        $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
-        $logEntry = "[$timestamp] [$Status] $Message"
-        try {
-            Add-Content -Path $script:LogPath -Value $logEntry -Encoding UTF8
-        }
-        catch {
-            Write-Warning "Failed to write to log file: $($_.Exception.Message)"
-        }
-    }
-    
-    # Windows Event Log if enabled
-    if ($script:EnableEventLogging) {
-        try {
-            # Map status to event log entry type
-            $entryType = switch ($Status) {
-                "Success" { "Information" }
-                "Warning" { "Warning" }
-                "Error" { "Error" }
-                "Info" { "Information" }
-                default { "Information" }
-            }
-            
-            # Map status to event ID ranges
-            $eventId = switch ($Status) {
-                "Success" { 1001 }
-                "Warning" { 2001 }
-                "Error" { 3001 }
-                "Info" { 1000 }
-                default { 1000 }
-            }
-            
-            # Ensure event source exists
-            if (-not [System.Diagnostics.EventLog]::SourceExists($script:EventLogSource)) {
-                try {
-                    New-EventLog -LogName "Application" -Source $script:EventLogSource
-                }
-                catch {
-                    # If we can't create the source, fall back to a generic one
-                    $script:EventLogSource = "Application"
-                }
-            }
-            
-            # Write to event log
-            Write-EventLog -LogName "Application" -Source $script:EventLogSource -EntryType $entryType -EventId $eventId -Message $Message
-        }
-        catch {
-            # Silently continue if event logging fails to avoid disrupting the main process
-            # Could optionally write to console: Write-Warning "Event log write failed: $($_.Exception.Message)"
-        }
-    }
-}
-
-# Function to test SQL Server connectivity
-function Test-SqlConnection {
-    param(
-        [string]$Instance,
-        [PSCredential]$Credential,
-        [string]$Type,
-        [bool]$EncryptConnection = $false,
-        [bool]$TrustServerCertificate = $false
-    )
-    
-    try {
-        Write-Status "Testing connection to $Type server: $Instance" "Info"
-        
-        $connectionParams = @{
-            SqlInstance = $Instance
-        }
-        
-        if ($Credential) {
-            $connectionParams.SqlCredential = $Credential
-        }
-        
-        if ($EncryptConnection) {
-            $connectionParams.EncryptConnection = $true
-            Write-Status "Using encrypted connection (TLS/SSL)" "Info"
-        }
-        
-        if ($TrustServerCertificate) {
-            $connectionParams.TrustServerCertificate = $true
-            Write-Status "Trusting server certificate" "Warning"
-        }
-        
-        $connection = Connect-DbaInstance @connectionParams
-        
-        if ($connection) {
-            Write-Status "Successfully connected to $Type server: $Instance" "Success"
-            Write-Status "Server Version: $($connection.VersionString)" "Info"
-            Write-Status "Server Collation: $($connection.Collation)" "Info"
-            return $connection
-        }
-        else {
-            Write-Status "Failed to connect to $Type server: $Instance" "Error"
-            return $null
-        }
-    }
-    catch {
-        Write-Status "Error connecting to $Type server: $Instance - $($_.Exception.Message)" "Error"
-        return $null
-    }
-}
-
-# Function to validate encryption settings
-function Test-EncryptionSettings {
-    param(
-        [object]$Connection,
-        [string]$BackupEncryptionAlgorithm,
-        [string]$BackupEncryptionCertificate
-    )
-    
-    $validationResults = @{
-        BackupEncryptionValid = $true
-        ConnectionEncryptionValid = $true
-        Warnings = @()
-    }
-    
-    if ($BackupEncryptionAlgorithm -and -not $BackupEncryptionCertificate) {
-        $validationResults.BackupEncryptionValid = $false
-        $validationResults.Warnings += "BackupEncryptionAlgorithm specified but BackupEncryptionCertificate is missing"
-    }
-    
-    if ($BackupEncryptionCertificate -and -not $BackupEncryptionAlgorithm) {
-        $validationResults.BackupEncryptionValid = $false
-        $validationResults.Warnings += "BackupEncryptionCertificate specified but BackupEncryptionAlgorithm is missing"
-    }
-    
-    if ($BackupEncryptionCertificate -and $Connection) {
-        try {
-            $certExists = Get-DbaCertificate -SqlInstance $Connection -Certificate $BackupEncryptionCertificate
-            if (-not $certExists) {
-                $validationResults.BackupEncryptionValid = $false
-                $validationResults.Warnings += "Certificate '$BackupEncryptionCertificate' not found in master database"
-            }
-        }
-        catch {
-            $validationResults.Warnings += "Could not validate certificate existence: $($_.Exception.Message)"
-        }
-    }
-    
-    return $validationResults
-}
-
-# Function to check collation compatibility
-function Test-CollationCompatibility {
-    param(
-        [object]$SourceConnection,
-        [object]$DestinationConnection,
-        [object[]]$Databases,
-        [bool]$IgnoreWarnings = $false
-    )
-    
-    try {
-        Write-Status "Checking collation compatibility..." "Info"
-        
-        $sourceServerCollation = $SourceConnection.Collation
-        $destServerCollation = $DestinationConnection.Collation
-        
-        Write-Status "Source server collation: $sourceServerCollation" "Info"
-        Write-Status "Destination server collation: $destServerCollation" "Info"
-        
-        $collationIssues = @()
-        
-        # Check server-level collation
-        if ($sourceServerCollation -ne $destServerCollation) {
-            $warning = "Server collation mismatch: Source ($sourceServerCollation) vs Destination ($destServerCollation)"
-            $collationIssues += $warning
-            if (-not $IgnoreWarnings) {
-                Write-Status $warning "Warning"
-                Write-Status "This may cause issues with system objects, temporary tables, and cross-database queries" "Warning"
-            }
-        }
-        else {
-            Write-Status "Server collations match - OK" "Success"
-        }
-        
-        # Check database-level collations
-        foreach ($database in $Databases) {
-            try {
-                $dbCollation = $database.Collation
-                if ($dbCollation -ne $destServerCollation) {
-                    $warning = "Database '$($database.Name)' collation ($dbCollation) differs from destination server ($destServerCollation)"
-                    $collationIssues += $warning
-                    if (-not $IgnoreWarnings) {
-                        Write-Status $warning "Warning"
-                    }
-                }
-            }
-            catch {
-                Write-Status "Could not check collation for database: $($database.Name)" "Warning"
-            }
-        }
-        
-        if ($collationIssues.Count -eq 0) {
-            Write-Status "No collation compatibility issues detected" "Success"
-        }
-        else {
-            Write-Status "Found $($collationIssues.Count) collation compatibility issues" "Warning"
-            if (-not $IgnoreWarnings) {
-                Write-Status "Consider the following recommendations:" "Info"
-                Write-Status "  1. Test applications thoroughly after migration" "Info"
-                Write-Status "  2. Review queries that use string comparisons" "Info"
-                Write-Status "  3. Check temporary table operations" "Info"
-                Write-Status "  4. Validate cross-database joins and queries" "Info"
-                Write-Status "Use -IgnoreCollationWarnings to suppress these warnings" "Info"
-            }
-        }
-        
-        return $collationIssues
-    }
-    catch {
-        Write-Status "Error checking collation compatibility: $($_.Exception.Message)" "Warning"
-        return @()
-    }
-}
-
-# Function to get user databases
-function Get-UserDatabases {
-    param(
-        [string]$Instance,
-        [PSCredential]$Credential,
-        [string[]]$IncludeDatabases,
-        [string[]]$ExcludeDatabases,
-        [bool]$ExcludeSystemDatabases = $true,
-        [bool]$IncludeAllUserDatabases = $false
-    )
-    
-    try {
-        Write-Status "Retrieving databases from: $Instance" "Info"
-        
-        $connectionParams = @{
-            SqlInstance = $Instance
-        }
-        
-        if ($Credential) {
-            $connectionParams.SqlCredential = $Credential
-        }
-        
-        if ($EncryptConnection) {
-            $connectionParams.EncryptConnection = $true
-            Write-Status "Using encrypted connection (TLS/SSL)" "Info"
-        }
-        
-        if ($TrustServerCertificate) {
-            $connectionParams.TrustServerCertificate = $true
-            Write-Status "Trusting server certificate" "Warning"
-        }
-        
-        # Get all databases
-        $allDatabases = Get-DbaDatabase @connectionParams
-        
-        # Filter system databases if requested
-        if ($ExcludeSystemDatabases) {
-            Write-Status "Excluding system databases" "Info"
-            $allDatabases = $allDatabases | Where-Object { 
-                $_.Name -notin @('master', 'model', 'msdb', 'tempdb', 'distribution', 'reportserver', 'reportservertempdb') 
-            }
-        }
-        else {
-            Write-Status "Including system databases (ExcludeSystemDatabases = false)" "Warning"
-        }
-        
-        # Filter based on include/exclude parameters
-        if ($IncludeAllUserDatabases) {
-            Write-Status "Including all user databases (IncludeAllUserDatabases = true)" "Info"
-            $databases = $allDatabases
-        }
-        elseif ($IncludeDatabases) {
-            $databases = $allDatabases | Where-Object { $_.Name -in $IncludeDatabases }
-        }
-        else {
-            $databases = $allDatabases
-        }
-        
-        if ($ExcludeDatabases) {
-            $databases = $databases | Where-Object { $_.Name -notin $ExcludeDatabases }
-        }
-        
-        $databaseType = if ($ExcludeSystemDatabases) { "user" } else { "all" }
-        Write-Status "Found $($databases.Count) $databaseType databases to export" "Success"
-        foreach ($db in $databases) {
-            $sizeGB = [math]::Round($db.Size/1MB, 2)
-            $dbType = if ($db.Name -in @('master', 'model', 'msdb', 'tempdb')) { " [SYSTEM]" } else { "" }
-            Write-Status "  - $($db.Name) (Size: ${sizeGB} MB)$dbType" "Info"
-        }
-        
-        return $databases
-    }
-    catch {
-        Write-Status "Error retrieving databases: $($_.Exception.Message)" "Error"
-        return @()
-    }
-}
-
-# Function to backup databases
-function Backup-UserDatabases {
-    param(
-        [string]$Instance,
-        [PSCredential]$Credential,
-        [object[]]$Databases,
-        [string]$BackupPath,
-        [string]$BackupEncryptionAlgorithm,
-        [string]$BackupEncryptionCertificate
-    )
-    
-    $backupResults = @()
-    
-    foreach ($database in $Databases) {
-        try {
-            Write-Status "Backing up database: $($database.Name)" "Info"
-            
-            $backupFile = Join-Path $BackupPath "$($database.Name)_$(Get-Date -Format 'yyyyMMdd_HHmmss').bak"
-            
-            $backupParams = @{
-                SqlInstance = $Instance
-                Database = $database.Name
-                Path = $backupFile
-                Type = 'Full'
-                CompressBackup = $true
-            }
-            
-            if ($Credential) {
-                $backupParams.SqlCredential = $Credential
-            }
-            
-            if ($BackupEncryptionAlgorithm -and $BackupEncryptionCertificate) {
-                $backupParams.EncryptionAlgorithm = $BackupEncryptionAlgorithm
-                $backupParams.EncryptionCertificate = $BackupEncryptionCertificate
-                Write-Status "Using backup encryption: $BackupEncryptionAlgorithm with certificate $BackupEncryptionCertificate" "Info"
-            }
-            
-            $backup = Backup-DbaDatabase @backupParams
-            
-            if ($backup) {
-                Write-Status "Successfully backed up $($database.Name) to $backupFile" "Success"
-                $backupResults += @{
-                    DatabaseName = $database.Name
-                    BackupFile = $backupFile
-                    Success = $true
-                    Size = (Get-Item $backupFile).Length
-                }
-            }
-            else {
-                Write-Status "Failed to backup database: $($database.Name)" "Error"
-                $backupResults += @{
-                    DatabaseName = $database.Name
-                    BackupFile = $null
-                    Success = $false
-                    Error = "Backup operation failed"
-                }
-            }
-        }
-        catch {
-            Write-Status "Error backing up database $($database.Name): $($_.Exception.Message)" "Error"
-            $backupResults += @{
-                DatabaseName = $database.Name
-                BackupFile = $null
-                Success = $false
-                Error = $_.Exception.Message
-            }
-        }
-    }
-    
-    return $backupResults
-}
-
-# Function to restore databases
-function Restore-UserDatabases {
-    param(
-        [string]$Instance,
-        [PSCredential]$Credential,
-        [object[]]$BackupResults,
-        [bool]$OverwriteExisting
-    )
-    
-    $restoreResults = @()
-    
-    foreach ($backup in $BackupResults) {
-        if (-not $backup.Success) {
-            Write-Status "Skipping restore for $($backup.DatabaseName) - backup failed" "Warning"
-            continue
-        }
-        
-        try {
-            Write-Status "Restoring database: $($backup.DatabaseName)" "Info"
-            
-            $restoreParams = @{
-                SqlInstance = $Instance
-                Path = $backup.BackupFile
-                DatabaseName = $backup.DatabaseName
-            }
-            
-            if ($Credential) {
-                $restoreParams.SqlCredential = $Credential
-            }
-            
-            if ($OverwriteExisting) {
-                $restoreParams.WithReplace = $true
-            }
-            
-            $restore = Restore-DbaDatabase @restoreParams
-            
-            if ($restore) {
-                Write-Status "Successfully restored database: $($backup.DatabaseName)" "Success"
-                $restoreResults += @{
-                    DatabaseName = $backup.DatabaseName
-                    Success = $true
-                }
-            }
-            else {
-                Write-Status "Failed to restore database: $($backup.DatabaseName)" "Error"
-                $restoreResults += @{
-                    DatabaseName = $backup.DatabaseName
-                    Success = $false
-                    Error = "Restore operation failed"
-                }
-            }
-        }
-        catch {
-            Write-Status "Error restoring database $($backup.DatabaseName): $($_.Exception.Message)" "Error"
-            $restoreResults += @{
-                DatabaseName = $backup.DatabaseName
-                Success = $false
-                Error = $_.Exception.Message
-            }
-        }
-    }
-    
-    return $restoreResults
-}
-
-# Function to export logins
-function Export-SqlLogins {
-    param(
-        [string]$SourceInstance,
-        [string]$DestinationInstance,
-        [PSCredential]$SourceCredential,
-        [PSCredential]$DestinationCredential
-    )
-    
-    try {
-        Write-Status "Exporting SQL Server logins" "Info"
-        
-        $copyParams = @{
-            Source = $SourceInstance
-            Destination = $DestinationInstance
-        }
-        
-        if ($SourceCredential) {
-            $copyParams.SourceSqlCredential = $SourceCredential
-        }
-        
-        if ($DestinationCredential) {
-            $copyParams.DestinationSqlCredential = $DestinationCredential
-        }
-        
-        $loginResults = Copy-DbaLogin @copyParams
-        
-        Write-Status "Successfully exported $($loginResults.Count) logins" "Success"
-        return $true
-    }
-    catch {
-        Write-Status "Error exporting logins: $($_.Exception.Message)" "Error"
-        return $false
-    }
-}
-
-# Function to export SQL Agent jobs
-function Export-SqlJobs {
-    param(
-        [string]$SourceInstance,
-        [string]$DestinationInstance,
-        [PSCredential]$SourceCredential,
-        [PSCredential]$DestinationCredential
-    )
-    
-    try {
-        Write-Status "Exporting SQL Server Agent jobs" "Info"
-        
-        $copyParams = @{
-            Source = $SourceInstance
-            Destination = $DestinationInstance
-        }
-        
-        if ($SourceCredential) {
-            $copyParams.SourceSqlCredential = $SourceCredential
-        }
-        
-        if ($DestinationCredential) {
-            $copyParams.DestinationSqlCredential = $DestinationCredential
-        }
-        
-        $jobResults = Copy-DbaAgentJob @copyParams
-        
-        Write-Status "Successfully exported $($jobResults.Count) SQL Agent jobs" "Success"
-        return $true
-    }
-    catch {
-        Write-Status "Error exporting SQL Agent jobs: $($_.Exception.Message)" "Error"
-        return $false
-    }
-}
-
-# Function to export linked servers
-function Export-LinkedServers {
-    param(
-        [string]$SourceInstance,
-        [string]$DestinationInstance,
-        [PSCredential]$SourceCredential,
-        [PSCredential]$DestinationCredential
-    )
-    
-    try {
-        Write-Status "Exporting linked servers" "Info"
-        
-        $copyParams = @{
-            Source = $SourceInstance
-            Destination = $DestinationInstance
-        }
-        
-        if ($SourceCredential) {
-            $copyParams.SourceSqlCredential = $SourceCredential
-        }
-        
-        if ($DestinationCredential) {
-            $copyParams.DestinationSqlCredential = $DestinationCredential
-        }
-        
-        $linkedServerResults = Copy-DbaLinkedServer @copyParams
-        
-        Write-Status "Successfully exported $($linkedServerResults.Count) linked servers" "Success"
-        return $true
-    }
-    catch {
-        Write-Status "Error exporting linked servers: $($_.Exception.Message)" "Error"
-        return $false
-    }
-}
-
-# Main execution logic
-Write-Status "Starting SQL Server instance export process" "Info"
-Write-Status "Source Instance: $SourceInstance" "Info"
-Write-Status "Destination Instance: $DestinationInstance" "Info"
-Write-Status "Export Path: $ExportPath" "Info"
-
-# Test connections and get connection objects
-$sourceConnection = $null
-$destinationConnection = $null
-
-if (-not $RestoreOnly) {
-    $sourceConnection = Test-SqlConnection -Instance $SourceInstance -Credential $SourceCredential -Type "source" -EncryptConnection $EncryptConnections -TrustServerCertificate $TrustServerCertificate
-    if (-not $sourceConnection) {
-        Write-Status "Cannot proceed without source server connection" "Error"
-        exit 1
-    }
-}
-
-if (-not $BackupOnly) {
-    $destinationConnection = Test-SqlConnection -Instance $DestinationInstance -Credential $DestinationCredential -Type "destination" -EncryptConnection $EncryptConnections -TrustServerCertificate $TrustServerCertificate
-    if (-not $destinationConnection) {
-        Write-Status "Cannot proceed without destination server connection" "Error"
-        exit 1
-    }
-}
-
-# Validate encryption settings
-if ($BackupEncryptionAlgorithm -or $BackupEncryptionCertificate) {
-    Write-Status "Validating backup encryption settings" "Info"
-    $encryptionValidation = Test-EncryptionSettings -Connection $sourceConnection -BackupEncryptionAlgorithm $BackupEncryptionAlgorithm -BackupEncryptionCertificate $BackupEncryptionCertificate
-    
-    if (-not $encryptionValidation.BackupEncryptionValid) {
-        foreach ($warning in $encryptionValidation.Warnings) {
-            Write-Status $warning "Error"
-        }
-        Write-Status "Cannot proceed with invalid backup encryption settings" "Error"
-        exit 1
-    }
-    
-    foreach ($warning in $encryptionValidation.Warnings) {
-        Write-Status $warning "Warning"
-    }
-}
-
-# Get databases to export
-if (-not $RestoreOnly) {
-    $databasesToExport = Get-UserDatabases -Instance $SourceInstance -Credential $SourceCredential -IncludeDatabases $DatabaseNames -ExcludeDatabases $ExcludeDatabases -ExcludeSystemDatabases $ExcludeSystemDatabases -IncludeAllUserDatabases $IncludeAllUserDatabases
-    
-    if ($databasesToExport.Count -eq 0) {
-        Write-Status "No databases found to export" "Warning"
-        exit 0
-    }
-    
-    # Check collation compatibility if both connections are available
-    if ($sourceConnection -and $destinationConnection -and -not $BackupOnly) {
-        Test-CollationCompatibility -SourceConnection $sourceConnection -DestinationConnection $destinationConnection -Databases $databasesToExport -IgnoreWarnings $IgnoreCollationWarnings
-    }
-    
-    # Backup databases
-    Write-Status "Starting database backup process" "Info"
-    $backupResults = Backup-UserDatabases -Instance $SourceInstance -Credential $SourceCredential -Databases $databasesToExport -BackupPath $ExportPath -BackupEncryptionAlgorithm $BackupEncryptionAlgorithm -BackupEncryptionCertificate $BackupEncryptionCertificate
-    
-    # Display backup summary
-    $successfulBackups = $backupResults | Where-Object { $_.Success }
-    $failedBackups = $backupResults | Where-Object { -not $_.Success }
-    
-    Write-Status "Backup Summary:" "Info"
-    Write-Status "  Successful: $($successfulBackups.Count)" "Success"
-    Write-Status "  Failed: $($failedBackups.Count)" "Error"
-    
-    if ($failedBackups.Count -gt 0) {
-        Write-Status "Failed backups:" "Error"
-        foreach ($failed in $failedBackups) {
-            Write-Status "  - $($failed.DatabaseName): $($failed.Error)" "Error"
-        }
-    }
-}
-else {
-    # Restore only mode - find existing backup files
-    Write-Status "Restore-only mode: Looking for existing backup files in $ExportPath" "Info"
-    $backupFiles = Get-ChildItem -Path $ExportPath -Filter "*.bak"
-    
-    if ($backupFiles.Count -eq 0) {
-        Write-Status "No backup files found in $ExportPath" "Error"
-        exit 1
-    }
-    
-    $backupResults = @()
-    foreach ($file in $backupFiles) {
-        $dbName = $file.BaseName -replace '_\d{8}_\d{6}$', ''
-        $backupResults += @{
-            DatabaseName = $dbName
-            BackupFile = $file.FullName
-            Success = $true
-            Size = $file.Length
-        }
-    }
-    
-    Write-Status "Found $($backupResults.Count) backup files to restore" "Info"
-}
-
-# Restore databases (unless backup-only mode)
-if (-not $BackupOnly -and $backupResults.Count -gt 0) {
-    Write-Status "Starting database restore process" "Info"
-    $restoreResults = Restore-UserDatabases -Instance $DestinationInstance -Credential $DestinationCredential -BackupResults $backupResults -OverwriteExisting $OverwriteExisting
-    
-    # Display restore summary
-    $successfulRestores = $restoreResults | Where-Object { $_.Success }
-    $failedRestores = $restoreResults | Where-Object { -not $_.Success }
-    
-    Write-Status "Restore Summary:" "Info"
-    Write-Status "  Successful: $($successfulRestores.Count)" "Success"
-    Write-Status "  Failed: $($failedRestores.Count)" "Error"
-    
-    if ($failedRestores.Count -gt 0) {
-        Write-Status "Failed restores:" "Error"
-        foreach ($failed in $failedRestores) {
-            Write-Status "  - $($failed.DatabaseName): $($failed.Error)" "Error"
-        }
-    }
-}
-
-# Export additional components if requested
-if (-not $BackupOnly -and -not $RestoreOnly) {
-    if ($IncludeLogins) {
-        Export-SqlLogins -SourceInstance $SourceInstance -DestinationInstance $DestinationInstance -SourceCredential $SourceCredential -DestinationCredential $DestinationCredential
-    }
-    
-    if ($IncludeJobs) {
-        Export-SqlJobs -SourceInstance $SourceInstance -DestinationInstance $DestinationInstance -SourceCredential $SourceCredential -DestinationCredential $DestinationCredential
-    }
-    
-    if ($IncludeLinkedServers) {
-        Export-LinkedServers -SourceInstance $SourceInstance -DestinationInstance $DestinationInstance -SourceCredential $SourceCredential -DestinationCredential $DestinationCredential
-    }
-}
-
-Write-Status "SQL Server export process completed" "Success"
-
-# Stop logging if enabled
-if ($LogPath) {
-    Stop-Transcript
-}
+# Execute the migration using the modular function
+Export-SqlServerInstance @exportParams
