@@ -1,3 +1,21 @@
+SQL Server Instance Upgrade to version sql 2022:
+Assumption: Side by Side Installation
+1) Use dbatools for all sql database tasks...
+2) It should be possible to choose what objects to transfer to the target SQl server
+3) It should check the collation of the target server.
+4) it should be possible to take encryption and TDE into account.
+5) The solution should give a choice to apply the upgrade directly or create an output file for later execution.
+Monitoring:
+Everything should be logged...
+The Logs should also go to the Windows Event Logs.
+
+Post-Upgrade Tasks:
+Verify Database Integrity – Run DBCC CHECKDB to detect corruption.
+Update Database Compatibility Level
+Update statistics
+Rebuild indexes
+
+
 ================================================================================
 | SQL Server Log Backup Performance Issue - Cohesity Diagnosis Request      |
 ================================================================================
