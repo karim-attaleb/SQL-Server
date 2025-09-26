@@ -1,10 +1,17 @@
 SQL Server Instance Upgrade to version sql 2022:
 Assumption: Side by Side Installation
-1) Use dbatools for all sql database tasks...
-2) It should be possible to choose what objects to transfer to the target SQl server
+1) Use dbatools for all sql database tasks(no TSQL!)
+2) It should be possible to choose what objects to transfer to the target SQl server.
 3) It should check the collation of the target server.
 4) it should be possible to take encryption and TDE into account.
 5) The solution should give a choice to apply the upgrade directly or create an output file for later execution.
+6) The solution should have a -Whatif switch
+7) The solution should never ever Drop anything, only adding objects.
+8) The solution should be flexible enough to choose one or more user databases. 
+It should also be possible to include All user databases.
+System databases SHOULD NOT BE COPIED OVER.
+9) The solution should be idempotent.
+
 Monitoring:
 Everything should be logged...
 The Logs should also go to the Windows Event Logs.
