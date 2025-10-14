@@ -1,17 +1,9 @@
-PS C:\Users\jf66510\Documents> import-module 'C:\Users\jf66510\Documents\DatabaseUtils.psm1'
-Test-Path : Cannot bind argument to parameter 'Path' because it is an empty string.
-At C:\Users\jf66510\Documents\DatabaseUtils.psm1:52 char:29
-+         if (-not (Test-Path $_)) {
-+                             ~~
-    + CategoryInfo          : InvalidData: (:) [Test-Path], ParentContainsErrorRecordException
-    + FullyQualifiedErrorId : ParameterArgumentValidationErrorEmptyStringNotAllowed,Microsoft.PowerShell.Commands.TestPathCommand
- 
-import-module : The specified module 'C:\Users\jf66510\Documents\DatabaseUtils.psm1' was not loaded because no valid module file was found in any module directory.
-At line:1 char:1
-+ import-module 'C:\Users\jf66510\Documents\DatabaseUtils.psm1'
-+ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    + CategoryInfo          : ResourceUnavailable: (C:\Users\jf6651...abaseUtils.psm1:String) [Import-Module], FileNotFoundException
-    + FullyQualifiedErrorId : Modules_ModuleNotFound,Microsoft.PowerShell.Commands.ImportModuleCommand
+I would like to create a sql server 2022 database on an existing Instance.
+In particular, I want to have a clean interface where the number of datafiles should be cleverly calculated.
+I was thinking of a treshold value to decide on the number of files...
+E.g a single datafile should have a max size of 100GB.
+If a bigger size is needed, try and create several files the same size...
+I am working in Powershell with dbatools.
 
 
 SQL Server Instance Upgrade to version sql 2022:
