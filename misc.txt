@@ -1,20 +1,9 @@
-WARNING: The names of some imported commands from the module 'DatabaseUtils' include unapproved verbs that might make them less discoverable. To find the commands with unapproved verbs, run the Import-Modu
-le command again with the Verbose parameter. For a list of approved verbs, type Get-Verb.
-[2025-10-14 11:53:22] [Info] Starting database creation process
-[2025-10-14 11:53:22] [Success] Successfully connected to SQL instance: s2s00euj\MSS66_DEV
-[2025-10-14 11:53:22] [Info] Using configured number of data files: 
-[2025-10-14 11:53:22] [Info] Validating disk space availability...
-Test-DbaSufficientDiskSpace : Data drive G: not found on SQL Server host
-At C:\Users\jf66510\Documents\Invoke-DatabaseCreation.ps1:127 char:27
-+     $hasSufficientSpace = Test-DbaSufficientDiskSpace `
-+                           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    + CategoryInfo          : NotSpecified: (:) [Write-Error], WriteErrorException
-    + FullyQualifiedErrorId : Microsoft.PowerShell.Commands.WriteErrorException,Test-DbaSufficientDiskSpace
- 
-[2025-10-14 11:53:22] [Error] Disk space validation failed. Please free up space on the drives or reduce database file sizes.
-[2025-10-14 11:53:22] [Error] Script execution failed: Disk space validation failed. Please free up space on the drives or reduce database file sizes.
-[2025-10-14 11:53:22] [Error] Stack trace: at <ScriptBlock>, C:\Users\jf66510\Documents\Invoke-DatabaseCreation.ps1: line 139
-at <ScriptBlock>, <No file>: line 1
+I would like to create a sql server 2022 database on an existing Instance.
+In particular, I want to have a clean interface where the number of datafiles should be cleverly calculated.
+I was thinking of a treshold value to decide on the number of files...
+E.g a single datafile should have a max size of 100GB.
+If a bigger size is needed, try and create several files the same size...
+I am working in Powershell with dbatools.
 
 
 SQL Server Instance Upgrade to version sql 2022:
