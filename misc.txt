@@ -1,3 +1,29 @@
+Look at these errors...
+In Powershell, $(var) is not correct, it should be ${var}. Check https://learn.microsoft.com/en-us/powershell/scripting/lang-spec/chapter-05?view=powershell-7.5 fro referrence.
+
+
+PS C:\Users\jf66510\Documents> .\Invoke-DatabaseCreation.ps1 -ConfigPath DatabaseConfig.psd1 #-Whatif
+WARNING: The names of some imported commands from the module 'DatabaseUtils' include unapproved verbs that might make them less discoverable. To find the commands with unapproved verbs, run the Import-Modu
+le command again with the Verbose parameter. For a list of approved verbs, type Get-Verb.
+[2025-10-14 11:27:42] [Info] Starting database creation process
+[2025-10-14 11:27:42] [Success] Successfully connected to SQL instance: s2s00euj\MSS66_DEV
+[2025-10-14 11:27:42] [Info] Using configured number of data files: 
+[2025-10-14 11:27:42] [Info] Validating disk space availability...
+Test-DbaSufficientDiskSpace : Failed to check disk space: The term 'requiredDataSpaceWithMarginMB' is not recognized as the name of a cmdlet, function, script file, or operable program. Check the 
+spelling of the name, or if a path was included, verify that the path is correct and try again.
+At C:\Users\jf66510\Documents\Invoke-DatabaseCreation.ps1:127 char:27
++     $hasSufficientSpace = Test-DbaSufficientDiskSpace `
++                           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (:) [Write-Error], WriteErrorException
+    + FullyQualifiedErrorId : Microsoft.PowerShell.Commands.WriteErrorException,Test-DbaSufficientDiskSpace
+ 
+[2025-10-14 11:27:42] [Error] Script execution failed: The term 'requiredDataSpaceWithMarginMB' is not recognized as the name of a cmdlet, function, script file, or operable program. Check the spelling of 
+the name, or if a path was included, verify that the path is correct and try again.
+[2025-10-14 11:27:42] [Error] Stack trace: at Test-DbaSufficientDiskSpace, C:\Users\jf66510\Documents\DatabaseUtils.psm1: line 443
+at <ScriptBlock>, C:\Users\jf66510\Documents\Invoke-DatabaseCreation.ps1: line 127
+at <ScriptBlock>, <No file>: line 1
+
+
 SQL Server Instance Upgrade to version sql 2022:
 Assumption: Side by Side Installation
 1) Use dbatools for all sql database tasks(no TSQL!)
