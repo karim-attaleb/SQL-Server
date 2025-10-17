@@ -1,8 +1,50 @@
-Go to the sql-server-upgrade-solution and read the Start-DbaMigration.ps1 file.
-I want a solution revolving around that file.
-It should only migrate user databases and never system and utility databases.
-It should be flexible enough to exclude any server objects.
-
+PS C:\Users\jf66510\Documents\dbcreation> .\Invoke-DatabaseCreation.ps1 -ConfigPath DatabaseConfig.psd1 #-WhatIf
+WARNING: The names of some imported commands from the module 'DatabaseUtils' include unapproved verbs that might make them less discoverable. To find the commands with unapproved verbs, run the I
+mport-Module command again with the Verbose parameter. For a list of approved verbs, type Get-Verb.
+[2025-10-17 15:51:29] [Info] Starting database creation process
+[2025-10-17 15:51:29] [Info] Configuration loaded from: DatabaseConfig.psd1
+[2025-10-17 15:51:29] [Info] Target SQL Instance: s2s00euj\MSS66_DEV, Database: DB_POD0_CREATEDCVIAPS
+[2025-10-17 15:51:29] [Info] Event Log integration: Enabled
+[2025-10-17 15:51:29] [Info] Connecting to SQL Server instance: s2s00euj\MSS66_DEV...
+[2025-10-17 15:51:29] [Success] Successfully connected to SQL instance: s2s00euj\MSS66_DEV
+[2025-10-17 15:51:29] [Info] SQL Server version: 16.0.4212.1, Edition: Enterprise Edition: Core-based Licensing (64-bit), Instance: MSS66_DEV
+[2025-10-17 15:51:29] [Info] Initializing directory structure for SQL Server instance: MSS66_DEV
+[2025-10-17 15:51:29] [Info] Data drive: G:\, Log drive: E:\
+[2025-10-17 15:51:29] [Info] Directory already exists: G:\MSS66_DEV\data
+[2025-10-17 15:51:29] [Info] Directory already exists: E:\MSS66_DEV\log
+[2025-10-17 15:51:29] [Info] Calculating optimal number of data files based on expected database size...
+[2025-10-17 15:51:29] [Info] Calculated optimal number of data files: 1 (based on expected size: 5GB, threshold: 10GB)
+[2025-10-17 15:51:29] [Info] File configuration: DataSize=5GB, LogSize=100MB, DataGrowth=100MB, LogGrowth=100MB
+[2025-10-17 15:51:29] [Info] Validating disk space availability on data drive :\ and log drive :\...
+[2025-10-17 15:51:29] [Success] Disk space validation passed - sufficient space available on all required drives
+[2025-10-17 15:51:29] [Info] Checking if database 'DB_POD0_CREATEDCVIAPS' already exists...
+[2025-10-17 15:51:29] [Info] Database 'DB_POD0_CREATEDCVIAPS' does not exist. Proceeding with creation...
+[2025-10-17 15:51:29] [Info] Preparing to create database 'DB_POD0_CREATEDCVIAPS' with the following configuration:
+[2025-10-17 15:51:29] [Info]   - Data directory: G:\MSS66_DEV\data
+[2025-10-17 15:51:29] [Info]   - Log directory: E:\MSS66_DEV\log
+[2025-10-17 15:51:29] [Info]   - Number of data files: 1
+[2025-10-17 15:51:29] [Info]   - Primary file size: 5GB
+[2025-10-17 15:51:29] [Info]   - Secondary file size: 5GB
+[2025-10-17 15:51:29] [Info]   - Log file size: 100MB
+[2025-10-17 15:51:29] [Info]   - Data file growth: 100MB
+[2025-10-17 15:51:29] [Info]   - Log file growth: 100MB
+[2025-10-17 15:51:29] [Info] Creating database 'DB_POD0_CREATEDCVIAPS'...
+WARNING: [15:51:30][New-DbaDatabase] Error creating Database DB_POD0_CREATEDCVIAPS on server s2s00euj\MSS66_DEV | MODIFY FILE encountered operating system error 112(There is not enough space on t
+he disk.) while attempting to expand the physical file 'G:\MSS66_DEV\data\DB_POD0_CREATEDCVIAPS_1.ndf'.
+CREATE DATABASE failed. Some file names listed could not be created. Check related errors.
+[2025-10-17 15:51:30] [Success] Successfully created database: DB_POD0_CREATEDCVIAPS with 1 data file(s)
+[2025-10-17 15:51:30] [Info] Setting database owner to 'sa'...
+[2025-10-17 15:51:30] [Success] Changed database owner from '' to 'sa'
+[2025-10-17 15:51:30] [Info] Enabling Query Store for database 'DB_POD0_CREATEDCVIAPS'...
+[2025-10-17 15:51:30] [Success] Enabled Query Store for database with optimized settings
+[2025-10-17 15:51:30] [Info] Database 'DB_POD0_CREATEDCVIAPS' configuration summary:
+[2025-10-17 15:51:30] [Info]   - Total data files: 1
+[2025-10-17 15:51:30] [Info]   - Data file location: G:\MSS66_DEV\data
+[2025-10-17 15:51:30] [Info]   - Log file location: E:\MSS66_DEV\log
+[2025-10-17 15:51:30] [Info]   - Owner: sa
+[2025-10-17 15:51:30] [Info]   - Query Store: Enabled
+[2025-10-17 15:51:30] [Success] Database creation completed successfully!
+DB_POD0_CREATEDCVIAPS
 
 
 
