@@ -1,10 +1,17 @@
-You need to add the user to the database and set its roles accordingly.
-The login type in the configuration file DatabaseConfig.psd1 is "WindowsLogin" or "SqlLogin". Kepp the same name in all files!!
-Make sure there is always 200MB free on the data and Log drive. This space is needed by system monitoring tools.
-
-
-
-Add-DbaDbRoleMember -SqlInstance localhost -Role "db_datareader","db_datawriter" -Member user1 -Database DEMODB
+[2025-10-23 14:57:26] [Success] Enabled Query Store for database with optimized settings
+[2025-10-23 14:57:26] [Info] Processing database user creation...
+[2025-10-23 14:57:26] [Info] Creating database user 'tda001\jf66236' for database 'DB_POD0_CREATEDCVIAPS'
+[2025-10-23 14:57:26] [Error] Login 'tda001\jf66236' does not exist on SQL Server instance 's2s00euj\MSS66_DEV'. Create the login first before adding database user.
+[2025-10-23 14:57:26] [Warning] Warning: Failed to create user 'tda001\jf66236'. See previous error messages.
+[2025-10-23 14:57:26] [Info] Database user creation processing completed
+[2025-10-23 14:57:26] [Info] Database 'DB_POD0_CREATEDCVIAPS' configuration summary:
+[2025-10-23 14:57:26] [Info]   - Total data files in PRIMARY filegroup: 1
+[2025-10-23 14:57:26] [Info]   - Data file location: G:\MSS66_DEV\data
+[2025-10-23 14:57:26] [Info]   - Log file location: E:\MSS66_DEV\log
+[2025-10-23 14:57:26] [Info]   - Owner: sa
+[2025-10-23 14:57:26] [Info]   - Query Store: Enabled
+[2025-10-23 14:57:26] [Info]   - Database Users: 1
+[2025-10-23 14:57:26] [Success] Database creation completed successfully!
 
 
 
