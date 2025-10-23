@@ -1,17 +1,28 @@
-[2025-10-23 14:57:26] [Success] Enabled Query Store for database with optimized settings
-[2025-10-23 14:57:26] [Info] Processing database user creation...
-[2025-10-23 14:57:26] [Info] Creating database user 'tda001\jf66236' for database 'DB_POD0_CREATEDCVIAPS'
-[2025-10-23 14:57:26] [Error] Login 'tda001\jf66236' does not exist on SQL Server instance 's2s00euj\MSS66_DEV'. Create the login first before adding database user.
-[2025-10-23 14:57:26] [Warning] Warning: Failed to create user 'tda001\jf66236'. See previous error messages.
-[2025-10-23 14:57:26] [Info] Database user creation processing completed
-[2025-10-23 14:57:26] [Info] Database 'DB_POD0_CREATEDCVIAPS' configuration summary:
-[2025-10-23 14:57:26] [Info]   - Total data files in PRIMARY filegroup: 1
-[2025-10-23 14:57:26] [Info]   - Data file location: G:\MSS66_DEV\data
-[2025-10-23 14:57:26] [Info]   - Log file location: E:\MSS66_DEV\log
-[2025-10-23 14:57:26] [Info]   - Owner: sa
-[2025-10-23 14:57:26] [Info]   - Query Store: Enabled
-[2025-10-23 14:57:26] [Info]   - Database Users: 1
-[2025-10-23 14:57:26] [Success] Database creation completed successfully!
+[2025-10-23 16:32:22] [Info] Starting database creation process
+[2025-10-23 16:32:22] [Info] Configuration loaded from: DatabaseConfig.psd1
+[2025-10-23 16:32:22] [Info] Target SQL Instance: s2s00euj\MSS66_DEV, Database: DB_POD0_CREATEDCVIAPS
+[2025-10-23 16:32:22] [Info] Event Log integration: Enabled
+[2025-10-23 16:32:22] [Info] Connecting to SQL Server instance: s2s00euj\MSS66_DEV...
+[2025-10-23 16:32:22] [Success] Successfully connected to SQL instance: s2s00euj\MSS66_DEV
+[2025-10-23 16:32:22] [Info] SQL Server version: 16.0.4212.1, Edition: Enterprise Edition: Core-based Licensing (64-bit), Instance: MSS66_DEV
+[2025-10-23 16:32:22] [Info] Processing SQL Server login creation...
+[2025-10-23 16:32:22] [Info] Creating SQL Server login 'tda001\jf66236' (Type: WindowsLogin)
+[2025-10-23 16:32:22] [Error] Failed to create login 'tda001\jf66236': A parameter cannot be found that matches parameter name 'WindowsLogin'.
+[2025-10-23 16:32:22] [Warning] Warning: Failed to create login 'tda001\jf66236'. See previous error messages.
+[2025-10-23 16:32:22] [Info] SQL Server login creation processing completed: 0 of 1 logins created successfully
+[2025-10-23 16:32:22] [Info] Initializing directory structure for SQL Server instance: MSS66_DEV
+[2025-10-23 16:32:22] [Info] Data drive: G:\, Log drive: E:\
+[2025-10-23 16:32:22] [Info] Directory already exists: G:\MSS66_DEV\data
+[2025-10-23 16:32:22] [Info] Directory already exists: E:\MSS66_DEV\log
+[2025-10-23 16:32:22] [Info] Calculating optimal number of data files based on expected database size...
+[2025-10-23 16:32:22] [Info] Calculated optimal number of data files: 1 (based on expected size: 5GB, threshold: 10GB)
+[2025-10-23 16:32:22] [Info] File configuration: DataSize=100MB, LogSize=100MB, DataGrowth=100MB, LogGrowth=100MB
+[2025-10-23 16:32:22] [Info] Validating disk space availability on data drive :\ and log drive :\...
+[2025-10-23 16:32:22] [Success] Disk space validation passed - sufficient space available on all required drives
+[2025-10-23 16:32:22] [Info] Checking if database 'DB_POD0_CREATEDCVIAPS' already exists...
+[2025-10-23 16:32:22] [Warning] Database 'DB_POD0_CREATEDCVIAPS' already exists. Skipping creation.
+DB_POD0_CREATEDCVIAPS
+
 
 
 
